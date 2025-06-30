@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-06-30T12:30:44.188Z",
+  "summary": {
+    "total": 3,
+    "passed": 2,
+    "failed": 1
+  },
+  "results": {
+    "Basic API Tests": {
+      "success": true,
+      "exitCode": 0,
+      "description": "Tests core API functionality and authentication"
+    },
+    "File Upload Tests": {
+      "success": false,
+      "exitCode": 1,
+      "description": "Tests file upload scenarios and validation"
+    },
+    "Performance Tests": {
+      "success": true,
+      "exitCode": 0,
+      "description": "Tests system performance and load handling"
+    }
+  }
+}
