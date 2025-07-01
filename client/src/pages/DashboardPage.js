@@ -4,13 +4,16 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AuthContext } from '../contexts/AuthContext';
-import { getDocuments } from '../services/documentService';
+import { getDocuments, verifyDocument } from '../services/documentService';
+import DocumentDetailsModal from '../components/DocumentDetailsModal';
 
 const DashboardPage = () => {
   const { user } = useContext(AuthContext);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, verified: 0, pending: 0, failed: 0 });
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) fetchDocuments();
@@ -43,6 +46,51 @@ const DashboardPage = () => {
     }
   };
 
+  const handleVerifyDocument = async (documentId) => {
+    try {
+      console.log('Starting verification for document:', documentId);
+      const response = await verifyDocument(documentId);
+      console.log('Verification successful:', response.data);
+      
+      // Update the document in the local state
+      setDocuments(prevDocs => 
+        prevDocs.map(doc => 
+          doc._id === documentId 
+            ? { ...doc, status: 'verified', verificationScore: response.data.confidence || 0.95 }
+            : doc
+        )
+      );
+      
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        verified: prevStats.verified + 1,
+        pending: prevStats.pending - 1
+      }));
+      
+      alert('Document verified successfully!');
+    } catch (error) {
+      console.error('Verification failed:', error);
+      if (error.response?.status === 401) {
+        alert('Authentication required. Please login again.');
+      } else if (error.response?.status === 403) {
+        alert('You do not have permission to verify documents.');
+      } else {
+        alert('Verification failed. Please try again.');
+      }
+    }
+  };
+
+  const handleViewDetails = (document) => {
+    setSelectedDocument(document);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedDocument(null);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'verified': return 'text-green-400';
@@ -64,9 +112,27 @@ const DashboardPage = () => {
   const getDocumentIcon = (type) => {
     switch (type) {
       case 'passport': return '🛂';
+      case 'driver-license': 
       case 'drivers_license': return '🚗';
+      case 'id-card': 
       case 'id_card': return '🆔';
-      case 'certificate': return '📜';
+      case 'birth-certificate': return '👶';
+      case 'marriage-certificate': return '�';
+      case 'academic-certificate': return '🎓';
+      case 'professional-certificate': return '🏆';
+      case 'visa': return '✈️';
+      case 'work-permit': return '💼';
+      case 'residence-permit': return '🏠';
+      case 'social-security-card': return '🛡️';
+      case 'voter-id': return '🗳️';
+      case 'utility-bill': return '⚡';
+      case 'bank-statement': return '🏦';
+      case 'insurance-card': return '📋';
+      case 'medical-certificate': return '🏥';
+      case 'tax-document': return '💰';
+      case 'property-deed': return '🏡';
+      case 'certificate': return '�📜';
+      case 'other': return '📄';
       default: return '📄';
     }
   };
@@ -158,8 +224,23 @@ const DashboardPage = () => {
                     </div>
                   )}
                   <div className="mt-4 flex gap-2">
-                    <button className="w-full py-1 text-xs bg-white/20 hover:bg-white/30 rounded transition">View Details</button>
-                    <button className="w-full py-1 text-xs text-gray-300 hover:text-white transition">Download</button>
+                    {doc.status === 'pending' && (
+                      <button 
+                        onClick={() => handleVerifyDocument(doc._id)}
+                        className="w-full py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition"
+                      >
+                        🔍 Verify
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handleViewDetails(doc)}
+                      className="w-full py-1 text-xs bg-white/20 hover:bg-white/30 rounded transition"
+                    >
+                      📄 Details
+                    </button>
+                    <button className="w-full py-1 text-xs text-gray-300 hover:text-white transition">
+                      📥 Download
+                    </button>
                   </div>
                 </motion.div>
               ))}
@@ -197,6 +278,13 @@ const DashboardPage = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Document Details Modal */}
+      <DocumentDetailsModal 
+        document={selectedDocument}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+      />
     </div>
   );
 };

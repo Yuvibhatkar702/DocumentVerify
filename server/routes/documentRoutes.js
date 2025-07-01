@@ -16,7 +16,13 @@ const router = express.Router();
 // Validation rules
 const uploadValidation = [
   body('documentType')
-    .isIn(['passport', 'id-card', 'driver-license', 'certificate', 'other'])
+    .isIn([
+      'passport', 'id-card', 'driver-license', 'birth-certificate', 
+      'marriage-certificate', 'academic-certificate', 'professional-certificate',
+      'visa', 'work-permit', 'residence-permit', 'social-security-card',
+      'voter-id', 'utility-bill', 'bank-statement', 'insurance-card',
+      'medical-certificate', 'tax-document', 'property-deed', 'other'
+    ])
     .withMessage('Invalid document type')
 ];
 
