@@ -1,4 +1,7 @@
+// Register Page – Styled to match animated LandingPage with enhancements
+
 import React, { useState, useContext } from 'react';
+import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 
@@ -16,10 +19,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const validateForm = () => {
@@ -37,13 +37,8 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
     setLoading(true);
-
     try {
       await register(formData.name, formData.email, formData.password);
       navigate('/dashboard');
@@ -55,148 +50,115 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        {/* Left Side - Branding */}
-        <div className="auth-branding">
-          <div className="branding-content">
-            <h1>🔐 DocuVerify</h1>
-            <h2>Join DocuVerify</h2>
-            <p>Create your account to start verifying documents with our advanced AI-powered system.</p>
-            
-            <div className="features-list">
-              <div className="feature-item">
-                <span className="feature-icon">✅</span>
-                <span>Free Account Setup</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🛡️</span>
-                <span>Secure & Private</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🚀</span>
-                <span>Instant Access</span>
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white px-4 relative overflow-hidden">
+      {/* Animated Background Blobs */}
+      <div className="absolute top-0 -left-10 w-[600px] h-[600px] bg-pink-500 opacity-20 rounded-full blur-3xl animate-pulse z-0" />
+      <div className="absolute bottom-0 -right-10 w-[500px] h-[500px] bg-blue-500 opacity-20 rounded-full blur-2xl animate-ping z-0" />
+
+      {/* Floating Badge */}
+      <div className="absolute top-6 right-6 bg-gradient-to-r from-pink-600 to-purple-500 text-white text-xs px-3 py-1 rounded-full shadow-lg z-10 animate-bounce">
+        🚀 Free Forever
+      </div>
+
+      <div className="relative w-full max-w-md p-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl z-10">
+        <motion.h2
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-3xl font-bold text-center mb-2"
+        >
+          Create Account
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-sm text-center text-gray-300 mb-6"
+        >
+          Join DocuVerify and start verifying securely
+        </motion.p>
+
+        {error && <div className="text-red-400 text-sm mb-4">⚠️ {error}</div>}
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium">Full Name</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Your full name"
+                required
+              />
             </div>
 
-            <div className="testimonial">
-              <p>"DocuVerify has revolutionized our document verification process. Fast, accurate, and secure!"</p>
-              <div className="testimonial-author">- Final Year Project Reviewer</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side - Register Form */}
-        <div className="auth-form-section">
-          <div className="auth-form-container">
-            <div className="form-header">
-              <h2>Create Account</h2>
-              <p>Fill in your details to get started</p>
+            <div>
+              <label className="block text-sm font-medium">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Enter your email"
+                required
+              />
             </div>
 
-            {error && (
-              <div className="error-message">
-                <span className="error-icon">⚠️</span>
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="auth-form">
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">👤</span>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="email">Email Address</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">📧</span>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Create a strong password"
-                    required
-                  />
-                </div>
-                <div className="password-hint">
-                  Password must be at least 6 characters with uppercase, lowercase, and number
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="confirmPassword">Confirm Password</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Confirm your password"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                className={`auth-btn ${loading ? 'loading' : ''}`}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="spinner"></span>
-                    Creating Account...
-                  </>
-                ) : (
-                  'Create Account'
-                )}
-              </button>
-            </form>
-
-            <div className="auth-footer">
-              <p>
-                Already have an account?{' '}
-                <Link to="/login" className="auth-link">
-                  Sign In
-                </Link>
-              </p>
-              <Link to="/" className="back-link">
-                ← Back to Home
-              </Link>
+            <div>
+              <label className="block text-sm font-medium">Password</label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                placeholder="Create password"
+                required
+              />
             </div>
-          </div>
+
+            <div>
+              <label className="block text-sm font-medium">Confirm Password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                placeholder="Confirm password"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 transition rounded-lg text-white font-semibold shadow-lg"
+            >
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </button>
+          </form>
+        </motion.div>
+
+        <p className="text-sm text-center mt-6 text-gray-400">
+          Already have an account?{' '}
+          <Link to="/login" className="text-blue-400 hover:underline">
+            Sign In
+          </Link>
+        </p>
+
+        <div className="text-center mt-2">
+          <Link to="/" className="text-xs text-gray-500 hover:text-white">
+            ← Back to Home
+          </Link>
         </div>
       </div>
     </div>
