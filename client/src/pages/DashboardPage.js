@@ -70,51 +70,33 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
       
-      // Get uploaded documents from localStorage
-      const uploadedDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
-      
-      // Mock documents for demo (only if no uploaded documents)
-      const mockDocuments = [
-        {
-          id: 'mock-1',
-          originalName: 'passport.jpg',
-          documentType: 'passport',
-          status: 'verified',
-          confidence: 92,
-          createdAt: new Date().toISOString(),
-          fileSize: 2048000
-        },
-        {
-          id: 'mock-2',
-          originalName: 'id-card.png',
-          documentType: 'id-card',
-          status: 'processing',
-          confidence: 0,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          fileSize: 1536000,
-          progress: 65
-        }
-      ];
-
       let documentsData = [];
 
-      // Try to get real documents from API
+      // Try to get real documents from API first
       try {
-        const response = await getDocuments();
-        if (response && response.length > 0) {
-          documentsData = response;
-        } else {
-          // Combine uploaded docs with mock data
-          documentsData = [...uploadedDocs, ...mockDocuments];
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await getDocuments();
+          if (response && response.success && response.data) {
+            documentsData = response.data;
+          } else if (response && Array.isArray(response)) {
+            documentsData = response;
+          }
         }
       } catch (fetchError) {
-        console.log('Using local and mock data due to API error:', fetchError.message);
-        // Combine uploaded docs with mock data
-        documentsData = [...uploadedDocs, ...mockDocuments];
+        console.log('API fetch error:', fetchError.message);
+        // If API fails, check for locally stored documents for this user
+        const userId = user?.id || localStorage.getItem('userId');
+        if (userId) {
+          const userDocs = JSON.parse(localStorage.getItem(`userDocuments_${userId}`) || '[]');
+          documentsData = userDocs;
+        }
       }
 
       // Sort by creation date (newest first)
-      documentsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (documentsData.length > 0) {
+        documentsData.sort((a, b) => new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt));
+      }
       
       setDocuments(documentsData);
       

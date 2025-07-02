@@ -28,7 +28,8 @@ export const uploadDocument = async (file, documentType) => {
 };
 
 export const getDocuments = async () => {
-  return api.get('/documents');
+  const response = await api.get('/documents');
+  return response.data;
 };
 
 export const getDocumentById = async (id) => {
