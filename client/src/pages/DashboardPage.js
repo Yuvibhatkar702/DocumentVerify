@@ -1,292 +1,450 @@
-// Upgraded Dashboard Page with animations and glassmorphism matching LandingPage
-
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { getDocuments } from '../services/documentService';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { getDocuments, verifyDocument } from '../services/documentService';
-import DocumentDetailsModal from '../components/DocumentDetailsModal';
 
-const DashboardPage = () => {
-  const { user } = useContext(AuthContext);
+const Dashboard = () => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, verified: 0, pending: 0, failed: 0 });
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    verified: 0,
+    pending: 0,
+    failed: 0
+  });
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    if (user) fetchDocuments();
-  }, [user]);
+    fetchDocuments();
+  }, []);
+
+  // Listen for navigation from upload page to refresh documents
+  useEffect(() => {
+    if (location.state?.fromUpload) {
+      fetchDocuments();
+      // Clear the state to prevent multiple refreshes
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // Function to get user name from multiple sources
+  const getUserName = () => {
+    // First try to get from AuthContext
+    if (user?.name) {
+      return user.name;
+    }
+    
+    // Then try to get from localStorage user object
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser.name) {
+          return parsedUser.name;
+        }
+      } catch (e) {
+        console.log('Error parsing stored user:', e);
+      }
+    }
+    
+    // Then try to get from localStorage userName
+    const userName = localStorage.getItem('userName');
+    if (userName) {
+      return userName;
+    }
+    
+    // Finally, extract from email as fallback
+    const userEmail = localStorage.getItem('userEmail');
+    if (userEmail) {
+      return userEmail.split('@')[0];
+    }
+    
+    return 'User';
+  };
 
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await getDocuments();
-      let docs = response.data.documents || response.data || [];
-      if (!Array.isArray(docs)) docs = [];
-      setDocuments(docs);
-      const newStats = {
-        total: docs.length,
-        verified: docs.filter(doc => doc.status === 'verified').length,
-        pending: docs.filter(doc => doc.status === 'pending').length,
-        failed: docs.filter(doc => doc.status === 'failed').length
-      };
-      setStats(newStats);
-    } catch (error) {
-      const mockDocs = [
-        { _id: '1', filename: 'passport.jpg', documentType: 'passport', status: 'verified', uploadDate: new Date().toISOString(), verificationScore: 0.95 },
-        { _id: '2', filename: 'license.jpg', documentType: 'drivers_license', status: 'verified', uploadDate: new Date().toISOString(), verificationScore: 0.88 },
-        { _id: '3', filename: 'id_card.jpg', documentType: 'id_card', status: 'pending', uploadDate: new Date().toISOString(), verificationScore: null }
+      setError(null);
+      
+      // Get uploaded documents from localStorage
+      const uploadedDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
+      
+      // Mock documents for demo (only if no uploaded documents)
+      const mockDocuments = [
+        {
+          id: 'mock-1',
+          originalName: 'passport.jpg',
+          documentType: 'passport',
+          status: 'verified',
+          confidence: 92,
+          createdAt: new Date().toISOString(),
+          fileSize: 2048000
+        },
+        {
+          id: 'mock-2',
+          originalName: 'id-card.png',
+          documentType: 'id-card',
+          status: 'processing',
+          confidence: 0,
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          fileSize: 1536000,
+          progress: 65
+        }
       ];
-      setDocuments(mockDocs);
-      setStats({ total: 3, verified: 2, pending: 1, failed: 0 });
+
+      let documentsData = [];
+
+      // Try to get real documents from API
+      try {
+        const response = await getDocuments();
+        if (response && response.length > 0) {
+          documentsData = response;
+        } else {
+          // Combine uploaded docs with mock data
+          documentsData = [...uploadedDocs, ...mockDocuments];
+        }
+      } catch (fetchError) {
+        console.log('Using local and mock data due to API error:', fetchError.message);
+        // Combine uploaded docs with mock data
+        documentsData = [...uploadedDocs, ...mockDocuments];
+      }
+
+      // Sort by creation date (newest first)
+      documentsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      setDocuments(documentsData);
+      
+      // Calculate stats based on actual documents
+      const stats = documentsData.reduce((acc, doc) => {
+        acc.total++;
+        if (doc.status === 'verified') acc.verified++;
+        else if (doc.status === 'processing' || doc.status === 'needs_review') acc.pending++;
+        else acc.failed++;
+        return acc;
+      }, { total: 0, verified: 0, pending: 0, failed: 0 });
+      
+      setStats(stats);
+    } catch (error) {
+      console.error('Error in fetchDocuments:', error);
+      setError('Failed to load documents');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyDocument = async (documentId) => {
-    try {
-      console.log('Starting verification for document:', documentId);
-      const response = await verifyDocument(documentId);
-      console.log('Verification successful:', response.data);
-      
-      // Update the document in the local state
-      setDocuments(prevDocs => 
-        prevDocs.map(doc => 
-          doc._id === documentId 
-            ? { ...doc, status: 'verified', verificationScore: response.data.confidence || 0.95 }
-            : doc
-        )
-      );
-      
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        verified: prevStats.verified + 1,
-        pending: prevStats.pending - 1
-      }));
-      
-      alert('Document verified successfully!');
-    } catch (error) {
-      console.error('Verification failed:', error);
-      if (error.response?.status === 401) {
-        alert('Authentication required. Please login again.');
-      } else if (error.response?.status === 403) {
-        alert('You do not have permission to verify documents.');
-      } else {
-        alert('Verification failed. Please try again.');
+  const handleUploadClick = () => {
+    navigate('/upload');
+  };
+
+  // Function to refresh documents (can be called from child components)
+  const refreshDocuments = () => {
+    fetchDocuments();
+  };
+
+  const DocumentCard = ({ document }) => {
+    const getStatusColor = (status) => {
+      switch (status) {
+        case 'verified': return 'text-green-400';
+        case 'processing': case 'needs_review': return 'text-yellow-400';
+        case 'rejected': case 'failed': return 'text-red-400';
+        default: return 'text-gray-400';
       }
-    }
-  };
+    };
 
-  const handleViewDetails = (document) => {
-    setSelectedDocument(document);
-    setIsModalOpen(true);
-  };
+    const getStatusIcon = (status) => {
+      switch (status) {
+        case 'verified': return '✅';
+        case 'processing': return '⏳';
+        case 'needs_review': return '⚠️';
+        case 'rejected': case 'failed': return '❌';
+        default: return '📄';
+      }
+    };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedDocument(null);
-  };
+    const formatFileSize = (bytes) => {
+      if (!bytes) return 'Unknown';
+      const mb = bytes / 1024 / 1024;
+      return `${mb.toFixed(2)} MB`;
+    };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'verified': return 'text-green-400';
-      case 'pending': return 'text-yellow-400';
-      case 'failed': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'verified': return '✅';
-      case 'pending': return '⏳';
-      case 'failed': return '❌';
-      default: return '❓';
-    }
-  };
-
-  const getDocumentIcon = (type) => {
-    switch (type) {
-      case 'passport': return '🛂';
-      case 'driver-license': 
-      case 'drivers_license': return '🚗';
-      case 'id-card': 
-      case 'id_card': return '🆔';
-      case 'birth-certificate': return '👶';
-      case 'marriage-certificate': return '�';
-      case 'academic-certificate': return '🎓';
-      case 'professional-certificate': return '🏆';
-      case 'visa': return '✈️';
-      case 'work-permit': return '💼';
-      case 'residence-permit': return '🏠';
-      case 'social-security-card': return '🛡️';
-      case 'voter-id': return '🗳️';
-      case 'utility-bill': return '⚡';
-      case 'bank-statement': return '🏦';
-      case 'insurance-card': return '📋';
-      case 'medical-certificate': return '🏥';
-      case 'tax-document': return '💰';
-      case 'property-deed': return '🏡';
-      case 'certificate': return '�📜';
-      case 'other': return '📄';
-      default: return '📄';
-    }
-  };
-
-  if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
+      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-all duration-200">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-lg">{getStatusIcon(document.status)}</span>
+            <div>
+              <h3 className="font-semibold text-white text-sm truncate max-w-32">
+                {document.originalName || document.fileName || 'Document'}
+              </h3>
+              <p className="text-xs text-gray-400">
+                {document.documentType?.replace('-', ' ').toUpperCase() || 'Unknown Type'}
+              </p>
+            </div>
+          </div>
+          <span className={`text-xs font-bold uppercase ${getStatusColor(document.status)}`}>
+            {document.status}
+          </span>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-400">Confidence:</span>
+            <span className="text-xs font-medium text-white">{document.confidence || 0}%</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-400">Uploaded:</span>
+            <span className="text-xs text-white">
+              {new Date(document.createdAt || document.uploadedAt).toLocaleDateString()}
+            </span>
+          </div>
+          {document.fileSize && (
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-400">Size:</span>
+              <span className="text-xs text-white">{formatFileSize(document.fileSize)}</span>
+            </div>
+          )}
+        </div>
+
+        {document.status === 'processing' && (
+          <div className="mb-4">
+            <div className="w-full bg-gray-700 rounded-full h-1.5">
+              <div 
+                className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                style={{ width: `${document.progress || 50}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Processing...</p>
+          </div>
+        )}
+
+        <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              console.log('View document details:', document.id);
+              // You can navigate to document details page here
+              // navigate(`/document/${document.id}`);
+            }}
+            className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs py-2 px-3 rounded border border-blue-600/30 transition-colors duration-200"
+          >
+            View Details
+          </button>
+          <button
+            onClick={handleUploadClick}
+            className="bg-green-600/20 hover:bg-green-600/30 text-green-400 text-xs py-2 px-3 rounded border border-green-600/30 transition-colors duration-200"
+          >
+            📤
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Please log in to view your dashboard</h2>
-          <Link to="/login" className="px-4 py-2 bg-blue-600 rounded-lg shadow hover:bg-blue-700 transition">
-            Go to Login
-          </Link>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (loading) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f0c29] text-white">
-        <div className="text-center animate-pulse">
-          <div className="h-8 w-8 border-b-2 border-blue-500 rounded-full animate-spin inline-block"></div>
-          <p className="mt-4 text-sm text-gray-300">Loading your dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button 
+            onClick={fetchDocuments}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white px-4 py-10">
-      <div className="max-w-7xl mx-auto space-y-10">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <h1 className="text-3xl font-bold mb-1">Welcome back, {user.name || 'User'}! 👋</h1>
-          <p className="text-sm text-gray-300">Manage and verify your documents using AI</p>
-        </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header with Upload Button */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Welcome back, {getUserName()}! 👋
+            </h1>
+            <p className="text-gray-300">
+              Manage and verify your documents using AI
+            </p>
+          </div>
+          
+          {/* Upload Document Button - Always Visible */}
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+            <button
+              onClick={handleUploadClick}
+              className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span>📄 Upload Document</span>
+            </button>
+            
+            <button
+              onClick={refreshDocuments}
+              className="bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-lg border border-white/20 transition-all duration-200 flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>🔄 Refresh</span>
+            </button>
+          </div>
+        </div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md shadow-xl">
-            <div className="text-2xl mb-2">📊</div>
-            <h3 className="text-3xl font-bold text-white">{stats.total}</h3>
-            <p className="text-sm text-gray-300">Total Documents</p>
-          </div>
-          <div className="p-6 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md shadow-xl">
-            <div className="text-2xl mb-2">✅</div>
-            <h3 className="text-3xl font-bold text-green-400">{stats.verified}</h3>
-            <p className="text-sm text-gray-300">Verified</p>
-          </div>
-          <div className="p-6 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md shadow-xl">
-            <div className="text-2xl mb-2">⏳</div>
-            <h3 className="text-3xl font-bold text-yellow-400">{stats.pending}</h3>
-            <p className="text-sm text-gray-300">Pending</p>
-          </div>
-          <div className="p-6 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md shadow-xl">
-            <div className="text-2xl mb-2">❌</div>
-            <h3 className="text-3xl font-bold text-red-400">{stats.failed}</h3>
-            <p className="text-sm text-gray-300">Failed</p>
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Recent Documents</h2>
-            <Link to="/upload" className="text-sm text-blue-400 hover:underline">View All</Link>
-          </div>
-
-          {documents.length === 0 ? (
-            <div className="bg-white/10 p-6 rounded-lg text-center border border-white/20 backdrop-blur-md">
-              <p className="text-gray-300">No documents uploaded yet. Get started now!</p>
-              <Link to="/upload" className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded shadow hover:bg-blue-700 transition">
-                Upload Document
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {documents.slice(0, 6).map((doc, index) => (
-                <motion.div key={doc._id} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-white/10 p-5 rounded-xl shadow border border-white/20 backdrop-blur-md">
-                  <div className="flex justify-between mb-2">
-                    <span>{getDocumentIcon(doc.documentType)}</span>
-                    <span className={`text-xs font-medium ${getStatusColor(doc.status)}`}>{getStatusIcon(doc.status)} {doc.status}</span>
-                  </div>
-                  <h4 className="font-semibold text-white mb-1">{doc.filename}</h4>
-                  <p className="text-xs text-gray-400 mb-2">Uploaded {new Date(doc.uploadDate).toLocaleDateString()}</p>
-                  {doc.verificationScore !== null && (
-                    <div className="mb-2">
-                      <p className="text-xs text-gray-400 mb-1">Confidence: {Math.round(doc.verificationScore * 100)}%</p>
-                      <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${doc.verificationScore * 100}%` }}></div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="mt-4 flex gap-2">
-                    {doc.status === 'pending' && (
-                      <button 
-                        onClick={() => handleVerifyDocument(doc._id)}
-                        className="w-full py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition"
-                      >
-                        🔍 Verify
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => handleViewDetails(doc)}
-                      className="w-full py-1 text-xs bg-white/20 hover:bg-white/30 rounded transition"
-                    >
-                      📄 Details
-                    </button>
-                    <button className="w-full py-1 text-xs text-gray-300 hover:text-white transition">
-                      📥 Download
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* System Status */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
-          <h2 className="text-xl font-bold mb-4">System Status</h2>
-          <div className="bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-md">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                <div>
-                  <div className="font-medium text-white">AI/ML Service</div>
-                  <div className="text-sm text-gray-400">All systems operational</div>
-                </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-sm font-medium">Total Documents</p>
+                <p className="text-3xl font-bold text-white">{stats.total}</p>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                <div>
-                  <div className="font-medium text-white">Document Processing</div>
-                  <div className="text-sm text-gray-400">Processing normally</div>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                <div>
-                  <div className="font-medium text-white">OCR Engine</div>
-                  <div className="text-sm text-gray-400">Text extraction active</div>
-                </div>
+              <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">📊</span>
               </div>
             </div>
           </div>
-        </motion.div>
+
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-sm font-medium">Verified</p>
+                <p className="text-3xl font-bold text-green-400">{stats.verified}</p>
+              </div>
+              <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">✅</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-sm font-medium">Pending</p>
+                <p className="text-3xl font-bold text-yellow-400">{stats.pending}</p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">⏳</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-sm font-medium">Failed</p>
+                <p className="text-3xl font-bold text-red-400">{stats.failed}</p>
+              </div>
+              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">❌</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Documents Section */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden">
+          <div className="p-6 border-b border-white/10">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-semibold text-white">Recent Documents</h2>
+              <span className="text-sm text-gray-400">
+                {documents.length} document{documents.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {documents.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-4xl">📄</span>
+                </div>
+                <h3 className="text-xl font-medium text-gray-300 mb-2">No documents yet</h3>
+                <p className="text-gray-400 mb-6">Upload your first document to get started with AI verification</p>
+                <button
+                  onClick={handleUploadClick}
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-6 rounded-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  🚀 Upload Your First Document
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {documents.slice(0, 6).map((document) => (
+                  <DocumentCard 
+                    key={document.id || document.fileName} 
+                    document={document}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Upload Options */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center">
+            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🆔</span>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Identity Documents</h3>
+            <p className="text-gray-300 text-sm mb-4">Upload passport, ID card, or driver's license</p>
+            <button
+              onClick={handleUploadClick}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
+            >
+              Upload ID
+            </button>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center">
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">📋</span>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Certificates</h3>
+            <p className="text-gray-300 text-sm mb-4">Academic, professional, or medical certificates</p>
+            <button
+              onClick={handleUploadClick}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+            >
+              Upload Certificate
+            </button>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center">
+            <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">📄</span>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Other Documents</h3>
+            <p className="text-gray-300 text-sm mb-4">Bank statements, utility bills, and more</p>
+            <button
+              onClick={handleUploadClick}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm"
+            >
+              Upload Document
+            </button>
+          </div>
+        </div>
       </div>
-
-      {/* Document Details Modal */}
-      <DocumentDetailsModal 
-        document={selectedDocument}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-      />
     </div>
   );
 };
 
-export default DashboardPage;
+export default Dashboard;
