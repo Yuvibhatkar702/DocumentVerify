@@ -1,0 +1,55 @@
+services:
+  # Backend Node.js Server
+  - type: web
+    name: document-verify-backend
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_ML_SERVICE_URL
+        value: https://document-verify-ai-ml.onrender.com
+      - key: CORS_ORIGIN
+        value: https://document-verify-frontend.onrender.com
+    
+  # AI/ML Python Service
+  - type: web
+    name: document-verify-ai-ml
+    env: python
+    buildCommand: cd ai-ml-service && pip install -r requirements.txt
+    startCommand: cd ai-ml-service && uvicorn app:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 10000
+      - key: ENVIRONMENT
+        value: production
+
+  # Frontend React App
+  - type: web
+    name: document-verify-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: ./client/build
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: REACT_APP_API_URL
+        value: https://document-verify-backend.onrender.com/api
+      - key: REACT_APP_AI_ML_URL
+        value: https://document-verify-ai-ml.onrender.com
+      - key: REACT_APP_ENVIRONMENT
+        value: production

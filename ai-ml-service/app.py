@@ -26,7 +26,12 @@ app = FastAPI(
 # Enable CORS (For frontend connection)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ⚠️ Allow all for development, change in production
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5001", 
+        "https://document-verify-frontend.onrender.com",
+        "https://document-verify-backend.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -173,10 +178,41 @@ async def verify_document_simple(data: dict):
 
 # Run with Uvicorn if executed directly
 if __name__ == "__main__":
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    import socket
+    
+    def find_free_port(start_port=8000):
+        """Find a free port starting from start_port"""
+        port = start_port
+        while port < start_port + 100:  # Try up to 100 ports
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('localhost', port))
+                    return port
+            except OSError:
+                port += 1
+        raise RuntimeError(f"Could not find a free port starting from {start_port}")
+    
+    # Get port from environment or find a free one
+    port = int(os.getenv('PORT', 8000))
+    
+    try:
+        uvicorn.run(
+            "app:app",
+            host="0.0.0.0",
+            port=port,
+            reload=True,
+            log_level="info"
+        )
+    except OSError as e:
+        if "Address already in use" in str(e):
+            free_port = find_free_port(port + 1)
+            logger.info(f"Port {port} is busy, using port {free_port} instead")
+            uvicorn.run(
+                "app:app",
+                host="0.0.0.0",
+                port=free_port,
+                reload=True,
+                log_level="info"
+            )
+        else:
+            raise

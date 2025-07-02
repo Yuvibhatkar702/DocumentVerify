@@ -17,7 +17,15 @@ const app = express();
 // CORS configuration - Must come before other middleware
 app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = ['http://localhost:3000', 'http://localhost:5001'];
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://localhost:5001',
+      'http://localhost:5002',
+      'http://localhost:5003',
+      process.env.CORS_ORIGIN,
+      'https://document-verify-frontend.onrender.com'
+    ].filter(Boolean);
+    
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
