@@ -13,6 +13,7 @@ const RegisterPage = () => {
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { register } = useContext(AuthContext);
@@ -23,25 +24,44 @@ const RegisterPage = () => {
   };
 
   const validateForm = () => {
+    // Check if passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return false;
     }
+    
+    // Check password length
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
       return false;
     }
+    
+    // Check password complexity
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+    if (!passwordRegex.test(formData.password)) {
+      setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+      return false;
+    }
+    
+    // Check name length
+    if (formData.name.trim().length < 2) {
+      setError('Name must be at least 2 characters long');
+      return false;
+    }
+    
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     if (!validateForm()) return;
     setLoading(true);
     try {
       await register(formData.name, formData.email, formData.password);
-      navigate('/dashboard');
+      setSuccess('Account created successfully! Redirecting to dashboard...');
+      setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -78,7 +98,8 @@ const RegisterPage = () => {
           Join DocuVerify and start verifying securely
         </motion.p>
 
-        {error && <div className="text-red-400 text-sm mb-4">⚠️ {error}</div>}
+        {error && <div className="text-red-400 text-sm mb-4 p-3 bg-red-400/10 border border-red-400/30 rounded-lg">⚠️ {error}</div>}
+        {success && <div className="text-green-400 text-sm mb-4 p-3 bg-green-400/10 border border-green-400/30 rounded-lg">✅ {success}</div>}
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -123,6 +144,9 @@ const RegisterPage = () => {
                 placeholder="Create password"
                 required
               />
+              <div className="text-xs text-gray-400 mt-1">
+                Password must contain: uppercase, lowercase, and number (min 6 chars)
+              </div>
             </div>
 
             <div>

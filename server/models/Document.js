@@ -1,11 +1,16 @@
 const mongoose = require('mongoose');
 
 const documentSchema = new mongoose.Schema({
-  filename: {
-    type: String,
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true
   },
   originalName: {
+    type: String,
+    required: true
+  },
+  fileName: {
     type: String,
     required: true
   },
@@ -13,74 +18,68 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  documentType: {
+    type: String,
+    required: true,
+    enum: [
+      'passport',
+      'id-card',
+      'driver-license',
+      'birth-certificate',
+      'marriage-certificate',
+      'academic-certificate',
+      'professional-certificate',
+      'visa',
+      'work-permit',
+      'residence-permit',
+      'social-security-card',
+      'voter-id',
+      'utility-bill',
+      'bank-statement',
+      'insurance-card',
+      'medical-certificate',
+      'tax-document',
+      'property-deed',
+      'other'
+    ]
+  },
   fileSize: {
     type: Number,
     required: true
   },
   mimeType: {
     type: String,
-    required: true
-  },
-  documentType: {
-    type: String,
     required: true,
-    enum: ['passport', 'id-card', 'driver-license', 'certificate', 'other']
-  },
-  uploadedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    enum: [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+      'image/tiff',
+      'image/bmp'
+    ]
   },
   status: {
     type: String,
-    enum: ['pending', 'processing', 'verified', 'rejected'],
-    default: 'pending'
+    enum: ['uploaded', 'processing', 'verified', 'failed', 'rejected', 'needs_review'],
+    default: 'uploaded'
   },
   verificationResult: {
-    isValid: {
-      type: Boolean,
-      default: null
-    },
-    confidenceScore: {
-      type: Number,
-      min: 0,
-      max: 1,
-      default: null
-    },
-    detectedText: {
-      type: String,
-      default: null
-    },
-    extractedData: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {}
-    },
-    anomalies: [{
-      type: String
-    }],
-    verifiedAt: {
-      type: Date
-    },
-    verificationMethod: {
-      type: String,
-      enum: ['ai-ml', 'manual', 'hybrid'],
-      default: 'ai-ml'
-    }
+    confidence: { type: Number, min: 0, max: 100 },
+    extractedData: mongoose.Schema.Types.Mixed,
+    authenticity: { type: String, enum: ['authentic', 'suspicious', 'forged', 'unknown'] },
+    issues: [String]
   },
-  notes: {
-    type: String,
-    default: ''
+  uploadedAt: {
+    type: Date,
+    default: Date.now
   },
-  processedAt: {
-    type: Date
-  }
+  processedAt: Date,
+  verifiedAt: Date
 }, {
   timestamps: true
 });
-
-// Indexes for better query performance
-documentSchema.index({ uploadedBy: 1, createdAt: -1 });
-documentSchema.index({ status: 1 });
-documentSchema.index({ documentType: 1 });
 
 module.exports = mongoose.model('Document', documentSchema);

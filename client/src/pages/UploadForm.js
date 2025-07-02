@@ -96,9 +96,37 @@ const UploadForm = ({ onUploadSuccess }) => {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    setFile(selectedFile);
     
     if (selectedFile) {
+      // Validate file size (max 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        e.target.value = '';
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        'image/jpeg', 
+        'image/jpg', 
+        'image/png', 
+        'image/gif', 
+        'image/webp',
+        'application/pdf',
+        'image/tiff',
+        'image/bmp'
+      ];
+      
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.tiff', '.bmp'];
+      const fileExt = selectedFile.name.toLowerCase().split('.').pop();
+      
+      if (!allowedTypes.includes(selectedFile.type) && !allowedExtensions.includes(`.${fileExt}`)) {
+        alert('Please select a valid file type:\n• Images: JPEG, PNG, GIF, WebP, TIFF, BMP\n• Documents: PDF');
+        e.target.value = '';
+        return;
+      }
+
+      setFile(selectedFile);
       console.log('File selected:', {
         name: selectedFile.name,
         size: selectedFile.size,
@@ -114,16 +142,9 @@ const UploadForm = ({ onUploadSuccess }) => {
       return;
     }
 
-    // Validate file size (max 10MB)
+    // Final validation
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be less than 10MB');
-      return;
-    }
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      alert('Please select a valid image file (JPEG, PNG, GIF) or PDF');
       return;
     }
 
@@ -233,17 +254,58 @@ const UploadForm = ({ onUploadSuccess }) => {
               type="file"
               id="file"
               onChange={handleFileChange}
-              accept="image/*,.pdf"
+              accept="image/*,.pdf,.tiff,.bmp"
               required
             />
+            <div style={{ 
+              marginTop: '8px', 
+              fontSize: '12px', 
+              color: '#9ca3af',
+              padding: '8px',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '6px',
+              border: '1px solid rgba(59, 130, 246, 0.2)'
+            }}>
+              📋 <strong>Supported formats:</strong> JPEG, PNG, GIF, WebP, PDF, TIFF, BMP<br/>
+              📏 <strong>Maximum size:</strong> 10MB
+            </div>
             {file && (
-              <div style={{ marginTop: '12px' }}>
-                <p style={{ color: 'white', fontSize: '14px', marginBottom: '4px' }}>
-                  📄 Selected: <strong>{file.name}</strong>
+              <div style={{ 
+                marginTop: '12px',
+                padding: '12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(16, 185, 129, 0.2)'
+              }}>
+                <p style={{ color: '#10b981', fontSize: '14px', marginBottom: '6px', fontWeight: 'bold' }}>
+                  ✅ File Selected Successfully
                 </p>
-                <p style={{ color: '#9ca3af', fontSize: '12px', margin: 0 }}>
-                  Size: {(file.size / 1024 / 1024).toFixed(2)} MB | Type: {file.type}
-                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📄 Name:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                      {file.name}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📊 Size:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>🏷️ Type:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                      {file.type || 'Unknown'}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📅 Modified:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                      {new Date(file.lastModified).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -253,10 +315,35 @@ const UploadForm = ({ onUploadSuccess }) => {
             disabled={loading || !file || !documentType}
             style={{
               opacity: loading || !file || !documentType ? 0.6 : 1,
-              cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer'
+              cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer',
+              padding: '12px 24px',
+              backgroundColor: loading || !file || !documentType ? '#374151' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              transition: 'all 0.3s ease',
+              width: '100%',
+              marginTop: '20px'
             }}
           >
-            {loading ? '⏳ Uploading...' : '📤 Upload Document'}
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid transparent',
+                  borderTop: '2px solid white',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Uploading...
+              </span>
+            ) : (
+              '📤 Upload & Verify Document'
+            )}
           </button>
         </form>
       ) : (
@@ -328,7 +415,7 @@ const UploadForm = ({ onUploadSuccess }) => {
                 <span style={{ fontSize: '20px' }}>🎉</span>
               )}
             </div>
-            <p style={{ color: '#e5e7eb', fontSize: '0.95rem', margin: 0 }}>
+            <p style={{ color: '#e5e7eb', fontSize: '0.95rem', margin: 0, fontWeight: 'bold' }}>
               {currentStep || 'Initializing verification...'}
             </p>
           </div>
@@ -389,7 +476,7 @@ const UploadForm = ({ onUploadSuccess }) => {
                 <div>
                   <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Document Type:</span>
                   <p style={{ color: '#e5e7eb', fontSize: '0.85rem', margin: '2px 0' }}>
-                    {documentType.replace('-', ' ').toUpperCase()}
+                    {documentType.replace(/-/g, ' ').toUpperCase()}
                   </p>
                 </div>
                 <div>

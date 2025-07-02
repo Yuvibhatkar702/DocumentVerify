@@ -1,22 +1,65 @@
 const Document = require('../models/Document');
-const VerificationLog = require('../models/VerificationLog');
-const aiMlService = require('../services/aiMlService');
-const fileService = require('../services/fileService');
-const { validationResult } = require('express-validator');
+const multer = require('multer');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/documents';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter to accept images and PDFs
+const fileFilter = (req, file, cb) => {
+  console.log('File filter - MIME type:', file.mimetype);
+  console.log('File filter - Original name:', file.originalname);
+  
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png', 
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'image/tiff',
+    'image/bmp'
+  ];
+  
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.tiff', '.bmp'];
+  const fileExt = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
+    cb(null, true);
+  } else {
+    console.log('File rejected - Invalid type:', file.mimetype, fileExt);
+    cb(new Error(`Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')} and extensions: ${allowedExtensions.join(', ')}`), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // Upload document
 const uploadDocument = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation errors',
-        errors: errors.array()
-      });
-    }
+    console.log('Upload request received');
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+    console.log('User ID:', req.user?.id);
 
     if (!req.file) {
       return res.status(400).json({
@@ -26,105 +69,145 @@ const uploadDocument = async (req, res) => {
     }
 
     const { documentType } = req.body;
-    const file = req.file;
+    
+    if (!documentType) {
+      return res.status(400).json({
+        success: false,
+        message: 'Document type is required'
+      });
+    }
+
+    // Validate document type
+    const validDocumentTypes = [
+      'passport', 'id-card', 'driver-license', 'birth-certificate', 
+      'marriage-certificate', 'academic-certificate', 'professional-certificate',
+      'visa', 'work-permit', 'residence-permit', 'social-security-card',
+      'voter-id', 'utility-bill', 'bank-statement', 'insurance-card',
+      'medical-certificate', 'tax-document', 'property-deed', 'other'
+    ];
+
+    if (!validDocumentTypes.includes(documentType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid document type. Allowed types: ${validDocumentTypes.join(', ')}`
+      });
+    }
 
     // Create document record
     const document = new Document({
-      filename: file.filename,
-      originalName: file.originalname,
-      filePath: file.path,
-      fileSize: file.size,
-      mimeType: file.mimetype,
-      documentType,
-      uploadedBy: req.user.id,
-      status: 'pending'
+      userId: req.user.id,
+      originalName: req.file.originalname,
+      fileName: req.file.filename,
+      filePath: req.file.path,
+      documentType: documentType,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype,
+      status: 'uploaded'
     });
 
-    await document.save();
+    console.log('Document object before save:', document);
 
-    // Log the upload action
-    await new VerificationLog({
-      documentId: document._id,
-      userId: req.user.id,
-      action: 'upload',
-      status: 'success',
-      details: {
-        filename: file.originalname,
-        fileSize: file.size,
-        documentType
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    }).save();
+    const savedDocument = await document.save();
+    console.log('Document saved successfully:', savedDocument);
 
-    // Trigger AI/ML processing asynchronously
-    processDocumentAsync(document._id);
+    // Simulate processing
+    setTimeout(async () => {
+      try {
+        await Document.findByIdAndUpdate(savedDocument._id, {
+          status: 'processing'
+        });
+        console.log('Document status updated to processing');
+        
+        // Simulate verification after processing
+        setTimeout(async () => {
+          try {
+            await Document.findByIdAndUpdate(savedDocument._id, {
+              status: 'verified',
+              'verificationResult.confidence': Math.floor(Math.random() * 20) + 80,
+              'verificationResult.authenticity': 'authentic',
+              verifiedAt: new Date()
+            });
+            console.log('Document verification completed');
+          } catch (verifyError) {
+            console.error('Error updating verification:', verifyError);
+          }
+        }, 3000);
+        
+      } catch (processError) {
+        console.error('Error updating processing status:', processError);
+      }
+    }, 1000);
 
     res.status(201).json({
       success: true,
       message: 'Document uploaded successfully',
-      document: {
-        id: document._id,
-        filename: document.originalName,
-        documentType: document.documentType,
-        status: document.status,
-        uploadDate: document.createdAt
+      data: {
+        id: savedDocument._id,
+        originalName: savedDocument.originalName,
+        documentType: savedDocument.documentType,
+        fileSize: savedDocument.fileSize,
+        status: savedDocument.status,
+        uploadedAt: savedDocument.uploadedAt
       }
     });
+
   } catch (error) {
     console.error('Upload error:', error);
+    
+    // Delete uploaded file if document creation failed
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    if (error.name === 'ValidationError') {
+      const errorMessages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errorMessages
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Server error during upload'
+      message: 'Internal server error',
+      error: error.message
     });
   }
 };
 
-// Get all documents for user
+// Get user documents
 const getDocuments = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, documentType } = req.query;
-    const query = { uploadedBy: req.user.id };
-
-    // Add filters if provided
-    if (status) query.status = status;
-    if (documentType) query.documentType = documentType;
-
-    const documents = await Document.find(query)
+    console.log('Get documents request for user:', req.user?.id);
+    
+    const documents = await Document.find({ userId: req.user.id })
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .select('-filePath'); // Don't expose file paths
+      .select('-filePath'); // Don't send file path to client
 
-    const total = await Document.countDocuments(query);
+    console.log(`Found ${documents.length} documents for user`);
 
     res.json({
       success: true,
-      documents,
-      pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalDocuments: total
-      }
+      data: documents
     });
   } catch (error) {
-    console.error('Get documents error:', error);
+    console.error('Error fetching documents:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error retrieving documents'
+      message: 'Failed to fetch documents',
+      error: error.message
     });
   }
 };
 
-// Get single document
-const getDocument = async (req, res) => {
+// Get document by ID
+const getDocumentById = async (req, res) => {
   try {
-    const { id } = req.params;
-    
     const document = await Document.findOne({
-      _id: id,
-      uploadedBy: req.user.id
-    }).select('-filePath');
+      _id: req.params.id,
+      userId: req.user.id
+    });
 
     if (!document) {
       return res.status(404).json({
@@ -135,24 +218,25 @@ const getDocument = async (req, res) => {
 
     res.json({
       success: true,
-      document
+      data: document
     });
   } catch (error) {
-    console.error('Get document error:', error);
+    console.error('Error fetching document:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error retrieving document'
+      message: 'Failed to fetch document',
+      error: error.message
     });
   }
 };
 
-// Manually verify document (admin only)
+// Verify document (admin only)
 const verifyDocument = async (req, res) => {
   try {
-    const { id } = req.params;
     const { isValid, notes } = req.body;
-
-    const document = await Document.findById(id);
+    
+    const document = await Document.findById(req.params.id);
+    
     if (!document) {
       return res.status(404).json({
         success: false,
@@ -160,40 +244,28 @@ const verifyDocument = async (req, res) => {
       });
     }
 
-    // Update document status
+    // Update document verification status
     document.status = isValid ? 'verified' : 'rejected';
-    document.verificationResult.isValid = isValid;
-    document.verificationResult.verifiedAt = new Date();
-    document.verificationResult.verificationMethod = 'manual';
-    document.notes = notes || '';
-    document.processedAt = new Date();
+    document.verificationResult = {
+      isValid,
+      notes: notes || '',
+      verifiedBy: req.user.id,
+      verifiedAt: new Date()
+    };
 
     await document.save();
-
-    // Log the verification action
-    await new VerificationLog({
-      documentId: document._id,
-      userId: req.user.id,
-      action: isValid ? 'approve' : 'reject',
-      status: 'success',
-      details: {
-        notes,
-        verificationMethod: 'manual'
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    }).save();
 
     res.json({
       success: true,
       message: `Document ${isValid ? 'verified' : 'rejected'} successfully`,
-      document
+      data: document
     });
   } catch (error) {
-    console.error('Verify document error:', error);
+    console.error('Error verifying document:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during verification'
+      message: 'Failed to verify document',
+      error: error.message
     });
   }
 };
@@ -201,11 +273,9 @@ const verifyDocument = async (req, res) => {
 // Delete document
 const deleteDocument = async (req, res) => {
   try {
-    const { id } = req.params;
-
     const document = await Document.findOne({
-      _id: id,
-      uploadedBy: req.user.id
+      _id: req.params.id,
+      userId: req.user.id
     });
 
     if (!document) {
@@ -215,87 +285,33 @@ const deleteDocument = async (req, res) => {
       });
     }
 
-    // Delete physical file
-    try {
-      await fs.unlink(document.filePath);
-    } catch (fileError) {
-      console.error('Error deleting file:', fileError);
+    // Delete file from filesystem
+    if (fs.existsSync(document.filePath)) {
+      fs.unlinkSync(document.filePath);
     }
 
-    // Delete document record
-    await Document.findByIdAndDelete(id);
+    // Delete document from database
+    await Document.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
       message: 'Document deleted successfully'
     });
   } catch (error) {
-    console.error('Delete document error:', error);
+    console.error('Error deleting document:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during deletion'
+      message: 'Failed to delete document',
+      error: error.message
     });
-  }
-};
-
-// Async function to process document with AI/ML service
-const processDocumentAsync = async (documentId) => {
-  try {
-    const document = await Document.findById(documentId);
-    if (!document) return;
-
-    document.status = 'processing';
-    await document.save();
-
-    // Call AI/ML service
-    const verificationResult = await aiMlService.analyzeDocument(document.filePath, document.documentType);
-
-    // Update document with results
-    document.status = verificationResult.isValid ? 'verified' : 'rejected';
-    document.verificationResult = {
-      ...verificationResult,
-      verifiedAt: new Date(),
-      verificationMethod: 'ai-ml'
-    };
-    document.processedAt = new Date();
-
-    await document.save();
-
-    // Log the verification
-    await new VerificationLog({
-      documentId: document._id,
-      userId: document.uploadedBy,
-      action: 'verify',
-      status: 'success',
-      details: verificationResult,
-      processingTime: Date.now() - document.createdAt.getTime()
-    }).save();
-
-  } catch (error) {
-    console.error('Document processing error:', error);
-    
-    // Update document status to indicate processing failure
-    await Document.findByIdAndUpdate(documentId, {
-      status: 'rejected',
-      'verificationResult.isValid': false,
-      processedAt: new Date()
-    });
-
-    // Log the error
-    await new VerificationLog({
-      documentId,
-      userId: null,
-      action: 'verify',
-      status: 'failure',
-      errorMessage: error.message
-    }).save();
   }
 };
 
 module.exports = {
+  upload,
   uploadDocument,
   getDocuments,
-  getDocument,
+  getDocument: getDocumentById,
   verifyDocument,
   deleteDocument
 };

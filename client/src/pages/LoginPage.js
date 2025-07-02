@@ -8,6 +8,7 @@ import { AuthContext } from '../contexts/AuthContext';
 const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useContext(AuthContext);
@@ -20,10 +21,12 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
     try {
       await login(formData.email, formData.password);
-      navigate('/dashboard');
+      setSuccess('Login successful! Redirecting to dashboard...');
+      setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {
@@ -51,7 +54,8 @@ const LoginPage = () => {
           Sign in to your DocuVerify account
         </motion.p>
 
-        {error && <div className="text-red-400 text-sm mb-4">⚠️ {error}</div>}
+        {error && <div className="text-red-400 text-sm mb-4 p-3 bg-red-400/10 border border-red-400/30 rounded-lg">⚠️ {error}</div>}
+        {success && <div className="text-green-400 text-sm mb-4 p-3 bg-green-400/10 border border-green-400/30 rounded-lg">✅ {success}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

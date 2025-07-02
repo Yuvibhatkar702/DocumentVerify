@@ -16,7 +16,7 @@ const register = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation errors',
+        message: 'Please check your input and fix the following issues:',
         errors: errors.array()
       });
     }
@@ -28,7 +28,7 @@ const register = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email'
+        message: 'An account with this email already exists. Please try logging in or use a different email.'
       });
     }
 
@@ -54,7 +54,7 @@ const register = async (req, res) => {
     console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during registration'
+      message: 'Something went wrong while creating your account. Please try again in a moment.'
     });
   }
 };
@@ -62,32 +62,41 @@ const register = async (req, res) => {
 // Login user
 const login = async (req, res) => {
   try {
+    console.log('Login attempt:', req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
-        message: 'Validation errors',
+        message: 'Please check your input and try again.',
         errors: errors.array()
       });
     }
 
     const { email, password } = req.body;
+    console.log('Looking for user with email:', email);
 
     // Find user and include password for comparison
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      console.log('User not found for email:', email);
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'The email or password you entered is incorrect. Please try again.'
       });
     }
 
+    console.log('User found, checking password...');
     // Check password
     const isPasswordValid = await user.comparePassword(password);
+    console.log('Password valid:', isPasswordValid);
+    
     if (!isPasswordValid) {
+      console.log('Invalid password for user:', email);
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'The email or password you entered is incorrect. Please try again.'
       });
     }
 
@@ -97,6 +106,7 @@ const login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id);
+    console.log('Login successful for user:', email);
 
     res.json({
       success: true,
@@ -113,7 +123,7 @@ const login = async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during login'
+      message: 'Something went wrong while logging you in. Please try again in a moment.'
     });
   }
 };

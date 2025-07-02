@@ -12,20 +12,21 @@ from datetime import datetime
 import logging
 from typing import Optional
 
-# Configure logging
+# Setup Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize FastAPI app
 app = FastAPI(
     title="Document Verification AI/ML Service",
     description="AI/ML microservice for document verification and analysis",
     version="1.0.0"
 )
 
-# Configure CORS
+# Enable CORS (For frontend connection)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],  # ⚠️ Allow all for development, change in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,23 +38,16 @@ from routes.ocr import router as ocr_router
 from routes.signature import router as signature_router
 from routes.validation import router as validation_router
 
-# Include routers
+# Register routers with API prefix
 app.include_router(analysis_router, prefix="/api/v1")
 app.include_router(ocr_router, prefix="/api/v1")
 app.include_router(signature_router, prefix="/api/v1")
 app.include_router(validation_router, prefix="/api/v1")
 
-@app.get("/")
-async def root():
-    return {
-        "message": "Document Verification AI/ML Service",
-        "version": "1.0.0",
-        "status": "running",
-        "timestamp": datetime.now().isoformat()
-    }
-
+# Health Check Route
 @app.get("/health")
 async def health_check():
+    logger.info("Health check called.")
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -64,8 +58,10 @@ async def health_check():
         }
     }
 
+# Service Info Route
 @app.get("/info")
 async def service_info():
+    logger.info("Service info requested.")
     return {
         "service": "Document Verification AI/ML Service",
         "version": "1.0.0",
@@ -76,18 +72,26 @@ async def service_info():
             "Image Quality Assessment",
             "Document Type Classification"
         ],
-        "supported_formats": [
-            "JPEG", "PNG", "PDF"
-        ],
+        "supported_formats": ["JPEG", "PNG", "PDF"],
         "max_file_size": "10MB"
     }
 
-# Simple test endpoints for API testing
+# Root Test Route
+@app.get("/")
+async def root():
+    logger.info("Root endpoint accessed.")
+    return {
+        "message": "Document Verification AI/ML Service is running",
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat()
+    }
+
+# Test OCR-like Text Extraction (Dummy)
 @app.post("/extract-text")
 async def extract_text_simple(data: dict):
-    """Simple text extraction endpoint for testing"""
     try:
         text = data.get('text', '')
+        logger.info(f"Extracted text: {text}")
         return {
             "success": True,
             "extracted_text": text,
@@ -98,25 +102,25 @@ async def extract_text_simple(data: dict):
         logger.error(f"Text extraction error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Test Document Classification (Dummy)
 @app.post("/classify-document")
 async def classify_document_simple(data: dict):
-    """Simple document classification endpoint for testing"""
     try:
         doc_type = data.get('document_type', 'unknown')
         text_content = data.get('text_content', '')
-        
-        # Simple classification logic
+
         confidence = 0.85
+        classification = 'unknown_document'
+
         if 'passport' in text_content.lower():
             classification = 'passport'
             confidence = 0.95
         elif 'driver' in text_content.lower() or 'license' in text_content.lower():
             classification = 'drivers_license'
             confidence = 0.90
-        else:
-            classification = 'unknown_document'
-            confidence = 0.60
-            
+
+        logger.info(f"Document classified as {classification} with confidence {confidence}")
+
         return {
             "success": True,
             "document_type": classification,
@@ -128,18 +132,16 @@ async def classify_document_simple(data: dict):
         logger.error(f"Document classification error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Test Document Verification (Dummy)
 @app.post("/verify-document")
 async def verify_document_simple(data: dict):
-    """Simple document verification endpoint for testing"""
     try:
         doc_type = data.get('document_type', 'unknown')
         extracted_data = data.get('extracted_data', {})
-        
-        # Simple verification logic
+
         verification_score = 0.85
         issues = []
-        
-        # Basic validation checks
+
         if doc_type == 'passport':
             if 'passport_number' not in extracted_data:
                 issues.append('Missing passport number')
@@ -147,15 +149,15 @@ async def verify_document_simple(data: dict):
             if 'name' not in extracted_data:
                 issues.append('Missing name')
                 verification_score -= 0.1
-                
         elif doc_type == 'drivers_license':
             if 'license_number' not in extracted_data:
                 issues.append('Missing license number')
                 verification_score -= 0.2
-                
-        # Determine verification status
+
         is_valid = verification_score >= 0.7 and len(issues) == 0
-        
+
+        logger.info(f"Document verification completed for {doc_type}, valid: {is_valid}")
+
         return {
             "success": True,
             "document_type": doc_type,
@@ -169,6 +171,7 @@ async def verify_document_simple(data: dict):
         logger.error(f"Document verification error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Run with Uvicorn if executed directly
 if __name__ == "__main__":
     uvicorn.run(
         "app:app",
