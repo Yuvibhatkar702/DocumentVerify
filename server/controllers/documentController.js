@@ -56,24 +56,38 @@ const upload = multer({
 // Upload document
 const uploadDocument = async (req, res) => {
   try {
-    console.log('Upload request received');
+    console.log('=== UPLOAD REQUEST RECEIVED ===');
+    console.log('Request headers:', req.headers);
     console.log('Request body:', req.body);
     console.log('Request file:', req.file);
-    console.log('User ID:', req.user?.id);
+    console.log('User from auth middleware:', req.user);
+    console.log('=== END UPLOAD DEBUG INFO ===');
 
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      console.log('Authentication failed - no user in request');
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required. Please log in.'
+      });
+    }
+
+    // Check if file was uploaded
     if (!req.file) {
+      console.log('No file in request');
       return res.status(400).json({
         success: false,
-        message: 'No file uploaded'
+        message: 'No file uploaded. Please select a file to upload.'
       });
     }
 
     const { documentType } = req.body;
     
     if (!documentType) {
+      console.log('No document type provided');
       return res.status(400).json({
         success: false,
-        message: 'Document type is required'
+        message: 'Document type is required. Please select a document type.'
       });
     }
 
@@ -87,11 +101,14 @@ const uploadDocument = async (req, res) => {
     ];
 
     if (!validDocumentTypes.includes(documentType)) {
+      console.log('Invalid document type:', documentType);
       return res.status(400).json({
         success: false,
-        message: `Invalid document type. Allowed types: ${validDocumentTypes.join(', ')}`
+        message: `Invalid document type "${documentType}". Allowed types: ${validDocumentTypes.join(', ')}`
       });
     }
+
+    console.log('Creating document record...');
 
     // Create document record
     const document = new Document({

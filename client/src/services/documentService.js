@@ -16,15 +16,49 @@ api.interceptors.request.use((config) => {
 });
 
 export const uploadDocument = async (file, documentType) => {
-  const formData = new FormData();
-  formData.append('document', file);
-  formData.append('documentType', documentType);
-  
-  return api.post('/documents/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  try {
+    console.log('DocumentService: Starting upload');
+    console.log('File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    console.log('Document type:', documentType);
+    
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('documentType', documentType);
+    
+    // Log form data contents
+    for (let [key, value] of formData.entries()) {
+      console.log(`FormData ${key}:`, value);
+    }
+    
+    console.log('Making request to:', `${API_BASE_URL}/documents/upload`);
+    
+    const response = await api.post('/documents/upload', formData, {
+      // Don't set Content-Type header - let browser set it automatically for FormData
+      // This ensures proper boundary is set for multipart/form-data
+      timeout: 30000, // 30 second timeout
+    });
+    
+    console.log('Upload response:', response);
+    return response;
+  } catch (error) {
+    console.error('DocumentService upload error:', error);
+    
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+      console.error('Error response headers:', error.response.headers);
+    } else if (error.request) {
+      console.error('Error request:', error.request);
+    } else {
+      console.error('Error message:', error.message);
+    }
+    
+    throw error;
+  }
 };
 
 export const getDocuments = async () => {

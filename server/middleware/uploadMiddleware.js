@@ -23,27 +23,79 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  // Allowed file types
+  console.log('File filter checking file:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size
+  });
+  
+  // Allowed file types - expanded list
   const allowedTypes = [
     'image/jpeg',
-    'image/jpg',
+    'image/jpg', 
     'image/png',
+    'image/gif',
+    'image/webp',
+    'image/tiff',
+    'image/bmp',
     'application/pdf'
   ];
 
-  if (allowedTypes.includes(file.mimetype)) {
+  // Also check file extension as backup
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.tiff', '.bmp'];
+  const fileExt = path.extname(file.originalname).toLowerCase();
+
+  if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
+    console.log('File accepted:', file.originalname);
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, and PDF files are allowed.'), false);
+    console.log('File rejected - Invalid type:', file.mimetype, 'Extension:', fileExt);
+    cb(new Error(`Invalid file type "${file.mimetype}". Allowed types: Images (JPEG, PNG, GIF, WebP, TIFF, BMP) and PDF files.`), false);
   }
 };
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1 // Only allow 1 file
   },
   fileFilter: fileFilter
 });
 
+// Error handling middleware for multer
+const uploadErrorHandler = (error, req, res, next) => {
+  console.error('Multer error:', error);
+  
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 10MB.'
+      });
+    } else if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many files. Only one file is allowed.'
+      });
+    } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Unexpected file field. Use "document" as the field name.'
+      });
+    }
+  } else if (error.message.includes('Invalid file type')) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+  
+  return res.status(400).json({
+    success: false,
+    message: 'Upload error: ' + error.message
+  });
+};
+
 module.exports = upload;
+module.exports.uploadErrorHandler = uploadErrorHandler;
