@@ -446,59 +446,120 @@ const UploadForm = ({ onUploadSuccess }) => {
           
           <div className="form-group">
             <label htmlFor="file">Choose Document:</label>
-            <input
-              type="file"
-              id="file"
-              onChange={handleFileChange}
-              accept="image/*,.pdf,.tiff,.bmp"
-              required
-            />
-            <div style={{ 
-              marginTop: '8px', 
-              fontSize: '12px', 
-              color: '#9ca3af',
-              padding: '8px',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              borderRadius: '6px',
-              border: '1px solid rgba(59, 130, 246, 0.2)'
-            }}>
-              📋 <strong>Supported formats:</strong> JPEG, PNG, GIF, WebP, PDF, TIFF, BMP<br/>
-              📏 <strong>Maximum size:</strong> 10MB
+            
+            {/* Custom styled file input */}
+            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+              <input
+                type="file"
+                id="file"
+                onChange={handleFileChange}
+                accept="image/*,.pdf,.tiff,.bmp"
+                required
+                style={{
+                  position: 'absolute',
+                  opacity: 0,
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer',
+                  zIndex: 2
+                }}
+              />
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px 24px',
+                backgroundColor: file ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                border: file ? '2px dashed rgba(16, 185, 129, 0.4)' : '2px dashed rgba(59, 130, 246, 0.4)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                minHeight: '80px',
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1
+              }}
+              onMouseEnter={(e) => {
+                if (!file) {
+                  e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.6)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!file) {
+                  e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                }
+              }}
+              >
+                {!file ? (
+                  <div>
+                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>📁</div>
+                    <div style={{ 
+                      color: '#3b82f6', 
+                      fontSize: '16px', 
+                      fontWeight: 'bold',
+                      marginBottom: '4px'
+                    }}>
+                      Click to choose file or drag & drop
+                    </div>
+                    <div style={{ 
+                      color: '#6b7280', 
+                      fontSize: '12px'
+                    }}>
+                      Supported: JPEG, PNG, PDF, TIFF, BMP (Max 10MB)
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+                    <div style={{ 
+                      color: '#10b981', 
+                      fontSize: '16px', 
+                      fontWeight: 'bold',
+                      marginBottom: '4px'
+                    }}>
+                      File Selected Successfully!
+                    </div>
+                    <div style={{ 
+                      color: '#374151', 
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}>
+                      {file.name}
+                    </div>
+                    <div style={{ 
+                      color: '#6b7280', 
+                      fontSize: '12px',
+                      marginTop: '4px'
+                    }}>
+                      Click to change file
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+            
+            {/* Additional file details for selected file */}
             {file && (
               <div style={{ 
                 marginTop: '12px',
                 padding: '12px',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                backgroundColor: 'rgba(16, 185, 129, 0.05)',
                 borderRadius: '8px',
-                border: '1px solid rgba(16, 185, 129, 0.2)'
+                border: '1px solid rgba(16, 185, 129, 0.15)'
               }}>
-                <p style={{ color: '#10b981', fontSize: '14px', marginBottom: '6px', fontWeight: 'bold' }}>
-                  ✅ File Selected Successfully
-                </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📄 Name:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
-                      {file.name}
-                    </p>
-                  </div>
-                  <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📊 Size:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                    <span style={{ color: '#9ca3af', fontSize: '11px' }}>📊 Size:</span>
+                    <p style={{ color: '#374151', fontSize: '12px', margin: '2px 0', fontWeight: '500' }}>
                       {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
                   <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>🏷️ Type:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                    <span style={{ color: '#9ca3af', fontSize: '11px' }}>🏷️ Type:</span>
+                    <p style={{ color: '#374151', fontSize: '12px', margin: '2px 0', fontWeight: '500' }}>
                       {file.type || 'Unknown'}
-                    </p>
-                  </div>
-                  <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📅 Modified:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
-                      {new Date(file.lastModified).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
