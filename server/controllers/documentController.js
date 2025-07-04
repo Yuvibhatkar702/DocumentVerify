@@ -2,6 +2,7 @@ const Document = require('../models/Document');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const AIMlService = require('../services/aiMlService');
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -127,33 +128,8 @@ const uploadDocument = async (req, res) => {
     const savedDocument = await document.save();
     console.log('Document saved successfully:', savedDocument);
 
-    // Simulate processing
-    setTimeout(async () => {
-      try {
-        await Document.findByIdAndUpdate(savedDocument._id, {
-          status: 'processing'
-        });
-        console.log('Document status updated to processing');
-        
-        // Simulate verification after processing
-        setTimeout(async () => {
-          try {
-            await Document.findByIdAndUpdate(savedDocument._id, {
-              status: 'verified',
-              'verificationResult.confidence': Math.floor(Math.random() * 20) + 80,
-              'verificationResult.authenticity': 'authentic',
-              verifiedAt: new Date()
-            });
-            console.log('Document verification completed');
-          } catch (verifyError) {
-            console.error('Error updating verification:', verifyError);
-          }
-        }, 3000);
-        
-      } catch (processError) {
-        console.error('Error updating processing status:', processError);
-      }
-    }, 1000);
+    // Process document with AI/ML service
+    processDocumentWithAI(savedDocument._id, savedDocument.filePath, documentType);
 
     res.status(201).json({
       success: true,
@@ -190,6 +166,139 @@ const uploadDocument = async (req, res) => {
       message: 'Internal server error',
       error: error.message
     });
+  }
+};
+
+// Process document with AI/ML service
+const processDocumentWithAI = async (documentId, filePath, documentType) => {
+  try {
+    console.log(`Starting AI/ML processing for document ${documentId}`);
+    
+    // Update status to processing
+    await Document.findByIdAndUpdate(documentId, {
+      status: 'processing'
+    });
+    
+    // Check if AI/ML service is available
+    const serviceHealthy = await AIMlService.checkServiceHealth();
+    if (!serviceHealthy) {
+      console.error('AI/ML service is not available, marking as failed');
+      await Document.findByIdAndUpdate(documentId, {
+        status: 'failed',
+        error: 'AI/ML service unavailable'
+      });
+      return;
+    }
+    
+    // Perform comprehensive document analysis
+    const analysisResult = await AIMlService.analyzeDocument(filePath, documentType);
+    
+    // Perform format validation
+    const formatValidation = await AIMlService.validateDocumentFormat(filePath, documentType);
+    
+    // Perform OCR
+    const ocrResult = await AIMlService.performOCR(filePath);
+    
+    // Perform signature detection
+    const signatureResult = await AIMlService.detectSignature(filePath);
+    
+    // Calculate comprehensive authenticity score
+    const authenticityScore = calculateAuthenticityScore(
+      analysisResult, 
+      formatValidation, 
+      ocrResult, 
+      signatureResult
+    );
+    
+    // Determine document status based on comprehensive analysis
+    let documentStatus = 'rejected';
+    let authenticity = 'fake';
+    
+    if (authenticityScore >= 0.8) {
+      documentStatus = 'verified';
+      authenticity = 'authentic';
+    } else if (authenticityScore >= 0.6) {
+      documentStatus = 'pending_review';
+      authenticity = 'suspicious';
+    }
+    
+    // Update document with verification results
+    await Document.findByIdAndUpdate(documentId, {
+      status: documentStatus,
+      verificationResult: {
+        confidence: Math.round(authenticityScore * 100),
+        authenticity: authenticity,
+        analysisDetails: {
+          aiAnalysis: analysisResult,
+          formatValidation: formatValidation,
+          ocrResult: {
+            text: ocrResult.detected_text || '',
+            confidence: ocrResult.confidence || 0
+          },
+          signatureDetection: {
+            detected: signatureResult.signature_detected || false,
+            confidence: signatureResult.confidence || 0
+          },
+          qualityScore: analysisResult.verificationDetails?.qualityScore || 0,
+          anomalies: analysisResult.anomalies || []
+        }
+      },
+      verifiedAt: new Date()
+    });
+    
+    console.log(`Document ${documentId} processed - Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}`);
+    
+  } catch (error) {
+    console.error(`Error processing document ${documentId}:`, error);
+    
+    // Mark document as failed
+    await Document.findByIdAndUpdate(documentId, {
+      status: 'failed',
+      error: error.message
+    });
+  }
+};
+
+// Calculate comprehensive authenticity score
+const calculateAuthenticityScore = (analysisResult, formatValidation, ocrResult, signatureResult) => {
+  try {
+    // Base score from AI analysis
+    const aiScore = analysisResult.confidenceScore || 0;
+    
+    // Format validation score
+    const formatScore = formatValidation.format_score || 0;
+    
+    // OCR confidence score
+    const ocrScore = ocrResult.confidence || 0;
+    
+    // Signature detection score (if applicable)
+    const signatureScore = signatureResult.signature_detected ? 
+      (signatureResult.confidence || 0.7) : 0.5;
+    
+    // Quality score
+    const qualityScore = analysisResult.verificationDetails?.qualityScore || 0;
+    
+    // Check for anomalies (reduces score)
+    const anomalies = analysisResult.anomalies || [];
+    const anomalyPenalty = anomalies.length * 0.1;
+    
+    // Weighted calculation
+    const weightedScore = (
+      aiScore * 0.35 +           // AI analysis weight
+      formatScore * 0.25 +       // Format validation weight
+      ocrScore * 0.20 +          // OCR confidence weight
+      signatureScore * 0.10 +    // Signature detection weight
+      qualityScore * 0.10        // Image quality weight
+    );
+    
+    // Apply anomaly penalty
+    const finalScore = Math.max(0, weightedScore - anomalyPenalty);
+    
+    return Math.min(1.0, finalScore);
+    
+  } catch (error) {
+    console.error('Error calculating authenticity score:', error);
+    return 0.1; // Very low score for errors
   }
 };
 
