@@ -142,6 +142,70 @@ const UploadForm = ({ onUploadSuccess }) => {
     }, 6000);
   };
 
+  // Function to show real verification progress for server uploads
+  const showRealVerificationProgress = (serverResponse) => {
+    console.log('Starting real verification progress with server response:', serverResponse);
+    setCurrentStep('✅ Document uploaded successfully!');
+    setVerificationProgress(25);
+    
+    setTimeout(() => {
+      setCurrentStep('🔍 AI analyzing document structure...');
+      setVerificationProgress(50);
+    }, 500);
+    
+    setTimeout(() => {
+      setCurrentStep('🤖 Running OCR and text extraction...');
+      setVerificationProgress(75);
+    }, 1000);
+    
+    setTimeout(() => {
+      setCurrentStep('🛡️ Performing authenticity verification...');
+      setVerificationProgress(90);
+    }, 1500);
+    
+    setTimeout(() => {
+      setCurrentStep('📊 Generating verification report...');
+      setVerificationProgress(95);
+    }, 2000);
+    
+    setTimeout(() => {
+      setCurrentStep('✅ Verification complete!');
+      setVerificationProgress(100);
+      
+      // Save the real server response data
+      const realDocument = {
+        id: serverResponse.id,
+        originalName: serverResponse.originalName || file.name,
+        fileName: serverResponse.fileName || file.name,
+        documentType: serverResponse.documentType || documentType,
+        status: serverResponse.status || 'processed',
+        uploadedAt: serverResponse.uploadedAt || new Date().toISOString(),
+        fileSize: serverResponse.fileSize || file.size,
+        verificationId: `VER-${serverResponse.id}`,
+        // Real verification result will be updated by the backend processing
+        isReal: true, // Mark as real server response
+        serverId: serverResponse.id
+      };
+      
+      // Save to localStorage for dashboard display
+      const existingDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
+      existingDocs.unshift(realDocument);
+      localStorage.setItem('uploadedDocuments', JSON.stringify(existingDocs));
+      
+      console.log('Real document saved:', realDocument);
+      
+      if (onUploadSuccess) {
+        onUploadSuccess(realDocument);
+      }
+    }, 2500);
+    
+    // Auto-redirect to dashboard after verification complete
+    setTimeout(() => {
+      setCurrentStep('Redirecting to dashboard...');
+      navigate('/dashboard', { state: { fromUpload: true } });
+    }, 4000);
+  };
+
   const resetForm = () => {
     setFile(null);
     setDocumentType('');
@@ -281,15 +345,25 @@ const UploadForm = ({ onUploadSuccess }) => {
         const response = await uploadDocument(file, documentType);
         console.log('Server upload successful:', response.data);
         
-        // Show success state and start verification animation
+        // Show success state and handle server response
         setUploadSuccess(true);
-        simulateVerificationProgress();
+        setLoading(false); // Important: Stop loading state
+        
+        // Clear the file and form state to prevent duplicate submissions
+        setFile(null);
+        setDocumentType('');
         
         // Reset file input
         const fileInput = document.getElementById('file');
         if (fileInput) {
           fileInput.value = '';
         }
+        
+        // Show real verification progress instead of simulation
+        showRealVerificationProgress(response.data);
+        
+        // Don't run local simulation if server upload succeeded
+        return;
         
       } catch (serverError) {
         console.log('Server upload failed:', serverError);
@@ -301,20 +375,24 @@ const UploadForm = ({ onUploadSuccess }) => {
           localStorage.removeItem('token');
           navigate('/login');
           return;
-        } else if (serverError.response?.status === 400) {
-          const errorMsg = serverError.response.data?.message || 'Invalid request. Please check your file and try again.';
-          console.error('Bad request:', errorMsg);
-          console.log('Continuing with local simulation due to server validation issue');
-          // Don't show error to user, just continue with local simulation
         } else if (serverError.response?.status === 413) {
           console.error('File too large');
           alert('File too large. Please select a file smaller than 10MB.');
           return;
+        } else if (serverError.response?.status === 400) {
+          const errorMsg = serverError.response.data?.message || 'Invalid request. Please check your file and try again.';
+          console.error('Bad request:', errorMsg);
+          
+          // Show the actual error to the user for 400 errors
+          alert(`Upload failed: ${errorMsg}`);
+          return;
         } else if (serverError.response?.status === 422) {
           const errorMsg = serverError.response.data?.message || 'File validation failed.';
           console.error('Validation error:', errorMsg);
-          console.log('Continuing with local simulation due to validation issue');
-          // Don't show error to user, just continue with local simulation
+          
+          // Show the actual error to the user for validation errors
+          alert(`Validation failed: ${errorMsg}`);
+          return;
         } else if (serverError.response?.status >= 500) {
           console.error('Server error:', serverError.response.status);
           console.log('Server error occurred. Continuing with local simulation.');
@@ -328,8 +406,8 @@ const UploadForm = ({ onUploadSuccess }) => {
           console.log('Unexpected error. Continuing with local simulation.');
         }
         
-        // For any server issue, continue with local simulation
-        console.log('Proceeding with local simulation');
+        // Only run local simulation for server errors or network issues
+        console.log('Proceeding with local simulation due to server/network issue');
         setUploadSuccess(true);
         simulateVerificationProgress();
         

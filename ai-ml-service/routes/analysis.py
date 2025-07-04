@@ -122,7 +122,45 @@ def perform_document_analysis(image, document_type, filename):
         )
         
         analysis_result["confidence_score"] = confidence_score
-        analysis_result["is_valid"] = confidence_score > 0.6 and len(anomalies) == 0
+        
+        # STRICT VALIDATION: Document is only valid if:
+        # 1. High confidence score (>= 0.7)
+        # 2. No critical anomalies
+        # 3. Good quality score (>= 0.4)
+        critical_anomalies = [
+            "Suspicious filename detected",
+            "Suspicious text content detected", 
+            "Suspicious compression artifacts detected",
+            "Irregular gradient patterns detected (possible manipulation)",
+            "Repeated patterns detected (possible copy-paste manipulation)",
+            "Inconsistent noise patterns detected",
+            "Unnatural texture uniformity detected",
+            "Abrupt texture transitions detected"
+        ]
+        
+        has_critical_anomalies = any(anomaly in critical_anomalies for anomaly in anomalies)
+        
+        # Final validation decision
+        analysis_result["is_valid"] = (
+            confidence_score >= 0.7 and 
+            not has_critical_anomalies and 
+            quality_score >= 0.4 and
+            len(anomalies) <= 2
+        )
+        
+        # Add detailed reasoning
+        if not analysis_result["is_valid"]:
+            reasons = []
+            if confidence_score < 0.7:
+                reasons.append(f"Low confidence score: {confidence_score:.2f}")
+            if has_critical_anomalies:
+                reasons.append("Critical anomalies detected")
+            if quality_score < 0.4:
+                reasons.append(f"Poor image quality: {quality_score:.2f}")
+            if len(anomalies) > 2:
+                reasons.append(f"Too many anomalies: {len(anomalies)}")
+            
+            analysis_result["rejection_reasons"] = reasons
         
         # Calculate processing time
         processing_time = (datetime.now() - start_time).total_seconds()
@@ -291,7 +329,7 @@ def validate_document_format(image, document_type):
 
 def detect_anomalies(image, ocr_text, filename):
     """
-    Detect anomalies that might indicate fake documents
+    Advanced anomaly detection for fake document identification
     """
     anomalies = []
     
@@ -317,19 +355,25 @@ def detect_anomalies(image, ocr_text, filename):
         if width < 400 or height < 300:
             anomalies.append("Document dimensions too small")
         
-        # 5. Check for digital artifacts (simple check)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        edge_density = float(np.sum(edges > 0)) / float(edges.size)
-        if edge_density > 0.3:  # Too many edges might indicate digital manipulation
-            anomalies.append("High edge density detected (possible digital manipulation)")
+        # 5. Advanced Digital Forensics
+        forensic_anomalies = perform_digital_forensics(image)
+        anomalies.extend(forensic_anomalies)
         
-        # 6. Check for perfect uniformity (possible digital creation)
-        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-        max_hist = float(np.max(hist))
-        sum_hist = float(np.sum(hist))
-        if max_hist / sum_hist > 0.8:  # Too uniform
-            anomalies.append("Unusual color distribution detected")
+        # 6. Font and Text Analysis
+        font_anomalies = analyze_font_consistency(image, ocr_text)
+        anomalies.extend(font_anomalies)
+        
+        # 7. Color Space Analysis
+        color_anomalies = analyze_color_space(image)
+        anomalies.extend(color_anomalies)
+        
+        # 8. Edge and Texture Analysis
+        texture_anomalies = analyze_texture_patterns(image)
+        anomalies.extend(texture_anomalies)
+        
+        # 9. Document Structure Analysis
+        structure_anomalies = analyze_document_structure(image, ocr_text)
+        anomalies.extend(structure_anomalies)
         
     except Exception as e:
         logger.error(f"Anomaly detection error: {str(e)}")
@@ -337,27 +381,391 @@ def detect_anomalies(image, ocr_text, filename):
     
     return anomalies
 
+def perform_digital_forensics(image):
+    """
+    Perform advanced digital forensics to detect manipulation
+    """
+    anomalies = []
+    
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # 1. Detect compression artifacts
+        # Look for JPEG compression inconsistencies
+        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+        laplacian_var = np.var(laplacian)
+        
+        if laplacian_var < 50:  # Very low variance indicates over-compression
+            anomalies.append("Suspicious compression artifacts detected")
+        
+        # 2. Detect resampling artifacts using Error Level Analysis (ELA)
+        # Convert to float for mathematical operations
+        gray_float = gray.astype(np.float64)
+        
+        # Calculate second derivative
+        sobel_x = cv2.Sobel(gray_float, cv2.CV_64F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(gray_float, cv2.CV_64F, 0, 1, ksize=3)
+        
+        # Calculate gradient magnitude
+        gradient_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+        
+        # Check for unusual gradient patterns
+        gradient_std = np.std(gradient_magnitude)
+        if gradient_std > 80:  # High variation might indicate manipulation
+            anomalies.append("Irregular gradient patterns detected (possible manipulation)")
+        
+        # 3. Detect copy-paste operations
+        # Look for repeated patterns in the image
+        template_matches = detect_copy_paste_artifacts(gray)
+        if template_matches > 5:  # Too many similar regions
+            anomalies.append("Repeated patterns detected (possible copy-paste manipulation)")
+        
+        # 4. Check for noise inconsistencies
+        # Real photos have consistent noise patterns
+        noise_score = analyze_noise_patterns(gray)
+        if noise_score > 0.7:  # Inconsistent noise
+            anomalies.append("Inconsistent noise patterns detected")
+        
+    except Exception as e:
+        logger.error(f"Digital forensics error: {str(e)}")
+        anomalies.append("Digital forensics analysis failed")
+    
+    return anomalies
+
+def detect_copy_paste_artifacts(gray):
+    """
+    Detect copy-paste operations by finding repeated patterns
+    """
+    try:
+        # Divide image into blocks and compare
+        h, w = gray.shape
+        block_size = 32
+        matches = 0
+        
+        for i in range(0, h - block_size, block_size):
+            for j in range(0, w - block_size, block_size):
+                block = gray[i:i+block_size, j:j+block_size]
+                
+                # Search for similar blocks in the rest of the image
+                for ii in range(i + block_size, h - block_size, block_size):
+                    for jj in range(0, w - block_size, block_size):
+                        compare_block = gray[ii:ii+block_size, jj:jj+block_size]
+                        
+                        # Calculate similarity
+                        diff = cv2.absdiff(block, compare_block)
+                        similarity = 1.0 - (np.mean(diff) / 255.0)
+                        
+                        if similarity > 0.95:  # Very similar blocks
+                            matches += 1
+        
+        return matches
+        
+    except Exception as e:
+        logger.error(f"Copy-paste detection error: {str(e)}")
+        return 0
+
+def analyze_noise_patterns(gray):
+    """
+    Analyze noise patterns for inconsistencies
+    """
+    try:
+        # Apply Gaussian blur to get noise
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        noise = cv2.absdiff(gray, blurred)
+        
+        # Divide image into regions and analyze noise
+        h, w = noise.shape
+        region_size = 64
+        noise_variances = []
+        
+        for i in range(0, h - region_size, region_size):
+            for j in range(0, w - region_size, region_size):
+                region = noise[i:i+region_size, j:j+region_size]
+                variance = np.var(region)
+                noise_variances.append(variance)
+        
+        # Calculate coefficient of variation
+        if len(noise_variances) > 0:
+            mean_var = np.mean(noise_variances)
+            std_var = np.std(noise_variances)
+            if mean_var > 0:
+                cv_noise = std_var / mean_var
+                return cv_noise
+        
+        return 0.0
+        
+    except Exception as e:
+        logger.error(f"Noise analysis error: {str(e)}")
+        return 0.0
+
+def analyze_font_consistency(image, ocr_text):
+    """
+    Analyze font consistency and detect mixed fonts
+    """
+    anomalies = []
+    
+    try:
+        if not ocr_text or len(ocr_text.strip()) < 10:
+            return anomalies
+        
+        # Check for mixed character encoding
+        ascii_chars = sum(1 for c in ocr_text if ord(c) < 128)
+        total_chars = len(ocr_text)
+        
+        if total_chars > 0:
+            ascii_ratio = ascii_chars / total_chars
+            if ascii_ratio < 0.8:  # Too many non-ASCII characters
+                anomalies.append("Inconsistent character encoding detected")
+        
+        # Check for suspicious text patterns
+        words = ocr_text.split()
+        if len(words) > 0:
+            # Check for too many numbers vs letters
+            digit_words = sum(1 for word in words if word.isdigit())
+            if digit_words / len(words) > 0.7:
+                anomalies.append("Unusual text pattern detected")
+        
+        # Check for inconsistent spacing
+        lines = ocr_text.split('\n')
+        if len(lines) > 2:
+            line_lengths = [len(line) for line in lines if line.strip()]
+            if line_lengths:
+                length_variance = np.var(line_lengths)
+                if length_variance > 500:  # High variance in line lengths
+                    anomalies.append("Inconsistent text formatting detected")
+        
+    except Exception as e:
+        logger.error(f"Font analysis error: {str(e)}")
+        anomalies.append("Font analysis failed")
+    
+    return anomalies
+
+def analyze_color_space(image):
+    """
+    Analyze color space for manipulation indicators
+    """
+    anomalies = []
+    
+    try:
+        # Convert to different color spaces
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        
+        # Analyze HSV color distribution
+        h, s, v = cv2.split(hsv)
+        
+        # Check for unusual saturation patterns
+        sat_mean = np.mean(s)
+        sat_std = np.std(s)
+        
+        if sat_mean > 200 or sat_std > 80:  # Over-saturated or inconsistent
+            anomalies.append("Unusual color saturation detected")
+        
+        # Check for histogram anomalies
+        hist_b = cv2.calcHist([image], [0], None, [256], [0, 256])
+        hist_g = cv2.calcHist([image], [1], None, [256], [0, 256])
+        hist_r = cv2.calcHist([image], [2], None, [256], [0, 256])
+        
+        # Check for gaps in histogram (possible manipulation)
+        for hist, color in [(hist_b, 'blue'), (hist_g, 'green'), (hist_r, 'red')]:
+            zero_bins = np.sum(hist == 0)
+            if zero_bins > 50:  # Too many gaps
+                anomalies.append(f"Histogram gaps detected in {color} channel")
+        
+        # Check for color channel inconsistencies
+        blue_mean = np.mean(image[:, :, 0])
+        green_mean = np.mean(image[:, :, 1])
+        red_mean = np.mean(image[:, :, 2])
+        
+        channel_diff = max(abs(blue_mean - green_mean), abs(green_mean - red_mean), abs(red_mean - blue_mean))
+        if channel_diff > 80:  # Channels too different
+            anomalies.append("Color channel inconsistency detected")
+        
+    except Exception as e:
+        logger.error(f"Color space analysis error: {str(e)}")
+        anomalies.append("Color space analysis failed")
+    
+    return anomalies
+
+def analyze_texture_patterns(image):
+    """
+    Analyze texture patterns for manipulation detection
+    """
+    anomalies = []
+    
+    try:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Calculate Local Binary Pattern (LBP) for texture analysis
+        # Simplified LBP implementation
+        lbp = calculate_lbp(gray)
+        
+        # Calculate texture uniformity
+        lbp_hist = cv2.calcHist([lbp], [0], None, [256], [0, 256])
+        
+        # Check for too uniform texture (possible digital creation)
+        max_bin = np.max(lbp_hist)
+        total_pixels = gray.shape[0] * gray.shape[1]
+        
+        if max_bin / total_pixels > 0.6:  # Too uniform
+            anomalies.append("Unnatural texture uniformity detected")
+        
+        # Check for texture discontinuities
+        # Calculate texture gradients
+        sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+        sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+        
+        # Find areas with abrupt texture changes
+        gradient_mag = np.sqrt(sobelx**2 + sobely**2)
+        threshold = np.percentile(gradient_mag, 95)
+        
+        high_gradient_pixels = np.sum(gradient_mag > threshold)
+        gradient_ratio = high_gradient_pixels / total_pixels
+        
+        if gradient_ratio > 0.15:  # Too many sharp transitions
+            anomalies.append("Abrupt texture transitions detected")
+        
+    except Exception as e:
+        logger.error(f"Texture analysis error: {str(e)}")
+        anomalies.append("Texture analysis failed")
+    
+    return anomalies
+
+def calculate_lbp(gray):
+    """
+    Calculate simplified Local Binary Pattern
+    """
+    try:
+        rows, cols = gray.shape
+        lbp = np.zeros((rows-2, cols-2), dtype=np.uint8)
+        
+        for i in range(1, rows-1):
+            for j in range(1, cols-1):
+                center = gray[i, j]
+                
+                # Compare with 8 neighbors
+                neighbors = [
+                    gray[i-1, j-1], gray[i-1, j], gray[i-1, j+1],
+                    gray[i, j+1], gray[i+1, j+1], gray[i+1, j],
+                    gray[i+1, j-1], gray[i, j-1]
+                ]
+                
+                # Calculate LBP value
+                lbp_val = 0
+                for k, neighbor in enumerate(neighbors):
+                    if neighbor >= center:
+                        lbp_val += (1 << k)
+                
+                lbp[i-1, j-1] = lbp_val
+        
+        return lbp
+        
+    except Exception as e:
+        logger.error(f"LBP calculation error: {str(e)}")
+        return gray[1:-1, 1:-1]  # Return cropped original
+
+def analyze_document_structure(image, ocr_text):
+    """
+    Analyze document structure for authenticity
+    """
+    anomalies = []
+    
+    try:
+        # Check for proper document layout
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Find text regions using morphological operations
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        
+        # Apply threshold
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Find contours
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Analyze contour properties
+        text_regions = []
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            area = cv2.contourArea(contour)
+            
+            # Filter for text-like regions
+            if area > 100 and w > 20 and h > 10:
+                aspect_ratio = w / h
+                if 0.5 < aspect_ratio < 10:  # Reasonable aspect ratio for text
+                    text_regions.append((x, y, w, h))
+        
+        # Check for proper text alignment
+        if len(text_regions) > 3:
+            # Check if text regions are roughly aligned
+            y_positions = [y for x, y, w, h in text_regions]
+            y_variance = np.var(y_positions)
+            
+            if y_variance > 10000:  # Poor alignment
+                anomalies.append("Poor text alignment detected")
+        
+        # Check for reasonable text density
+        total_text_area = sum(w * h for x, y, w, h in text_regions)
+        image_area = gray.shape[0] * gray.shape[1]
+        text_density = total_text_area / image_area
+        
+        if text_density < 0.05:  # Too little text
+            anomalies.append("Insufficient text content for document type")
+        elif text_density > 0.7:  # Too much text
+            anomalies.append("Excessive text density detected")
+        
+    except Exception as e:
+        logger.error(f"Document structure analysis error: {str(e)}")
+        anomalies.append("Document structure analysis failed")
+    
+    return anomalies
+
 def calculate_confidence_score(quality_score, ocr_accuracy, signature_detected, format_validation, anomaly_count):
     """
-    Calculate overall confidence score
+    Calculate overall confidence score with strict anomaly penalties
     """
     # Base score from quality and OCR
-    base_score = (float(quality_score) * 0.4 + float(ocr_accuracy) * 0.3)
+    base_score = (float(quality_score) * 0.3 + float(ocr_accuracy) * 0.25)
     
     # Format validation bonus
     format_bonus = 0.0
     if format_validation.get("dimensions_valid", False):
-        format_bonus += 0.1
+        format_bonus += 0.15
     if format_validation.get("aspect_ratio_valid", False):
+        format_bonus += 0.1
+    if format_validation.get("size_score", 0) > 0.7:
         format_bonus += 0.1
     
     # Signature detection bonus
     signature_bonus = 0.1 if signature_detected else 0.0
     
-    # Anomaly penalty - critical for fake detection
-    anomaly_penalty = float(anomaly_count) * 0.3  # Increased penalty for anomalies
+    # CRITICAL: Strict anomaly penalty system
+    # Any anomaly should significantly reduce confidence
+    if anomaly_count == 0:
+        # No anomalies - good baseline
+        anomaly_penalty = 0.0
+        authenticity_bonus = 0.1  # Bonus for clean documents
+    elif anomaly_count == 1:
+        # One anomaly - moderate penalty
+        anomaly_penalty = 0.25
+        authenticity_bonus = 0.0
+    elif anomaly_count <= 3:
+        # Multiple anomalies - high penalty
+        anomaly_penalty = 0.5
+        authenticity_bonus = 0.0
+    else:
+        # Many anomalies - document is likely fake
+        anomaly_penalty = 0.8
+        authenticity_bonus = 0.0
     
     # Calculate final score
-    final_score = base_score + format_bonus + signature_bonus - anomaly_penalty
+    final_score = base_score + format_bonus + signature_bonus + authenticity_bonus - anomaly_penalty
+    
+    # Additional penalty for suspicious combinations
+    if anomaly_count > 0 and quality_score < 0.5:
+        final_score -= 0.2  # Poor quality + anomalies = likely fake
+    
+    if anomaly_count > 2 and ocr_accuracy < 0.5:
+        final_score -= 0.3  # Multiple anomalies + poor OCR = very suspicious
     
     return float(max(0.0, min(1.0, final_score)))

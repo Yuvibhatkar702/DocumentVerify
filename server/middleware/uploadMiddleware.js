@@ -65,8 +65,35 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 1 // Only allow 1 file
   },
-  fileFilter: fileFilter
+  fileFilter: fileFilter,
+  // Add debug logging
+  dest: uploadDir,
+  onError: function(err, next) {
+    console.error('Multer onError:', err);
+    next(err);
+  }
 });
+
+// Add middleware to log the request before multer processes it
+const preUploadLogger = (req, res, next) => {
+  console.log('=== PRE-UPLOAD MIDDLEWARE ===');
+  console.log('Request Content-Type:', req.headers['content-type']);
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Raw body available:', !!req.body);
+  console.log('=== END PRE-UPLOAD DEBUG ===');
+  next();
+};
+
+// Add middleware to log after multer processes
+const postUploadLogger = (req, res, next) => {
+  console.log('=== POST-UPLOAD MIDDLEWARE ===');
+  console.log('Multer processed file:', req.file);
+  console.log('Multer processed body:', req.body);
+  console.log('=== END POST-UPLOAD DEBUG ===');
+  next();
+};
 
 // Error handling middleware for multer
 const uploadErrorHandler = (error, req, res, next) => {
@@ -112,4 +139,6 @@ const uploadErrorHandler = (error, req, res, next) => {
 
 module.exports = upload;
 module.exports.uploadErrorHandler = uploadErrorHandler;
+module.exports.preUploadLogger = preUploadLogger;
+module.exports.postUploadLogger = postUploadLogger;
 module.exports.uploadErrorHandler = uploadErrorHandler;

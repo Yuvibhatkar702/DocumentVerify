@@ -10,7 +10,7 @@ const {
 const auth = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
 const upload = require('../middleware/uploadMiddleware');
-const { uploadErrorHandler } = require('../middleware/uploadMiddleware');
+const { uploadErrorHandler, preUploadLogger, postUploadLogger } = require('../middleware/uploadMiddleware');
 
 const router = express.Router();
 
@@ -38,7 +38,7 @@ const verifyValidation = [
 ];
 
 // Routes
-router.post('/upload', auth, upload.single('document'), uploadErrorHandler, uploadDocument);
+router.post('/upload', preUploadLogger, auth, upload.single('document'), postUploadLogger, uploadErrorHandler, uploadDocument);
 router.get('/', auth, getDocuments);
 router.get('/:id', auth, getDocument);
 router.post('/:id/verify', auth, admin, verifyValidation, verifyDocument);
