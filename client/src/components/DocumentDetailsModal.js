@@ -48,8 +48,8 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
           <div className="flex items-center space-x-3">
             <span className="text-4xl">{getDocumentIcon(document.documentType)}</span>
             <div>
-              <h2 className="text-2xl font-bold text-white">{document.filename}</h2>
-              <p className="text-gray-400 capitalize">{document.documentType.replace('-', ' ')}</p>
+              <h2 className="text-2xl font-bold text-white">{document.originalName || document.fileName}</h2>
+              <p className="text-gray-400 capitalize">{document.documentType?.replace('-', ' ') || 'Unknown Type'}</p>
             </div>
           </div>
           <button
@@ -71,15 +71,15 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
             </span>
           </div>
           
-          {document.verificationScore !== null && (
+          {document.verificationResult?.confidence !== null && (
             <div>
               <p className="text-sm text-gray-400 mb-2">
-                Verification Confidence: {Math.round(document.verificationScore * 100)}%
+                Verification Confidence: {Math.round(document.verificationResult.confidence || 0)}%
               </p>
               <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-500"
-                  style={{ width: `${document.verificationScore * 100}%` }}
+                  style={{ width: `${document.verificationResult.confidence || 0}%` }}
                 ></div>
               </div>
             </div>
@@ -93,7 +93,7 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-gray-400">Original Name</label>
-                <p className="text-white">{document.originalName || document.filename}</p>
+                <p className="text-white">{document.originalName || document.fileName || 'Unknown'}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-400">File Size</label>
@@ -101,11 +101,11 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
               </div>
               <div>
                 <label className="text-sm text-gray-400">Upload Date</label>
-                <p className="text-white">{new Date(document.uploadDate || document.createdAt).toLocaleString()}</p>
+                <p className="text-white">{new Date(document.createdAt || document.uploadedAt).toLocaleString()}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-400">Document Type</label>
-                <p className="text-white capitalize">{document.documentType.replace('-', ' ')}</p>
+                <p className="text-white capitalize">{document.documentType?.replace('-', ' ') || 'Unknown Type'}</p>
               </div>
             </div>
           </div>
@@ -119,10 +119,10 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
                   {document.status}
                 </p>
               </div>
-              {document.verificationScore && (
+              {document.verificationResult?.confidence && (
                 <div>
                   <label className="text-sm text-gray-400">AI Confidence Score</label>
-                  <p className="text-white">{Math.round(document.verificationScore * 100)}%</p>
+                  <p className="text-white">{Math.round(document.verificationResult.confidence || 0)}%</p>
                 </div>
               )}
               <div>
@@ -147,6 +147,178 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
               <pre className="text-gray-300 text-sm whitespace-pre-wrap">
                 {JSON.stringify(document.extractedData, null, 2)}
               </pre>
+            </div>
+          </div>
+        )}
+
+        {/* Comprehensive Analysis Report */}
+        {document.verificationResult && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-white mb-3">🔍 Comprehensive Analysis Report</h3>
+            
+            {/* Document Type Analysis */}
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <h4 className="text-md font-semibold text-blue-400 mb-2">📋 Document Type Analysis</h4>
+              <div className="text-sm text-gray-300">
+                <p><strong>Document Type:</strong> {document.documentType.replace('-', ' ').toUpperCase()}</p>
+                <p><strong>Original Name:</strong> {document.originalName}</p>
+                <p><strong>File Size:</strong> {(document.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                <p><strong>Upload Date:</strong> {new Date(document.uploadDate || document.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Authenticity Assessment */}
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <h4 className="text-md font-semibold text-yellow-400 mb-2">🚨 Authenticity Assessment</h4>
+              <div className="space-y-2">
+                {document.verificationResult.analysisDetails && (
+                  <>
+                    {/* Format Validation */}
+                    {document.verificationResult.analysisDetails.formatValidation && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-400">✅</span>
+                        <span className="text-sm text-gray-300">Document format validation passed</span>
+                      </div>
+                    )}
+                    
+                    {/* OCR Analysis */}
+                    {document.verificationResult.analysisDetails.ocrResult && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-400">✅</span>
+                        <span className="text-sm text-gray-300">
+                          OCR text extraction successful (Confidence: {Math.round(document.verificationResult.analysisDetails.ocrResult.confidence * 100)}%)
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Signature Detection */}
+                    {document.verificationResult.analysisDetails.signatureDetection && (
+                      <div className="flex items-center space-x-2">
+                        <span className={document.verificationResult.analysisDetails.signatureDetection.detected ? "text-green-400" : "text-gray-400"}>
+                          {document.verificationResult.analysisDetails.signatureDetection.detected ? "✅" : "ℹ️"}
+                        </span>
+                        <span className="text-sm text-gray-300">
+                          Signature {document.verificationResult.analysisDetails.signatureDetection.detected ? "detected" : "not detected"}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Quality Assessment */}
+                    {document.verificationResult.analysisDetails.qualityScore && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-400">✅</span>
+                        <span className="text-sm text-gray-300">
+                          Image quality score: {Math.round(document.verificationResult.analysisDetails.qualityScore * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Analysis Results */}
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <h4 className="text-md font-semibold text-blue-400 mb-2">📊 Analysis Results</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-300">Authenticity Score:</span>
+                  <span className="text-white font-semibold">{document.verificationResult.confidence || 0}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-300">Anomalies Found:</span>
+                  <span className="text-white font-semibold">
+                    {document.verificationResult.analysisDetails?.anomalies?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-300">Document Status:</span>
+                  <span className={`font-semibold capitalize ${getStatusColor(document.status)}`}>
+                    {document.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Suspicious Indicators */}
+            {document.verificationResult.analysisDetails?.anomalies && document.verificationResult.analysisDetails.anomalies.length > 0 && (
+              <div className="bg-red-900 bg-opacity-50 rounded-lg p-4 mb-4 border border-red-500">
+                <h4 className="text-md font-semibold text-red-400 mb-2">🚨 Suspicious Indicators</h4>
+                <div className="space-y-2">
+                  {document.verificationResult.analysisDetails.anomalies.map((anomaly, index) => (
+                    <div key={index} className="flex items-start space-x-2">
+                      <span className="text-red-400 mt-1">•</span>
+                      <span className="text-sm text-red-300">{anomaly}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Final Assessment */}
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <h4 className="text-md font-semibold text-green-400 mb-2">🎯 Final Assessment</h4>
+              <div className="space-y-2">
+                {document.status === 'verified' && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-green-400">✅</span>
+                    <span className="text-sm text-green-300">DOCUMENT VERIFIED - Appears authentic</span>
+                  </div>
+                )}
+                {document.status === 'pending_review' && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-yellow-400">⚠️</span>
+                    <span className="text-sm text-yellow-300">REQUIRES REVIEW - Some concerns detected</span>
+                  </div>
+                )}
+                {document.status === 'rejected' && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-red-400">❌</span>
+                    <span className="text-sm text-red-300">DOCUMENT REJECTED - Multiple red flags detected</span>
+                  </div>
+                )}
+                {document.status === 'failed' && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-red-400">❌</span>
+                    <span className="text-sm text-red-300">PROCESSING FAILED - Unable to analyze document</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Extracted Text (if available) */}
+            {document.verificationResult.analysisDetails?.ocrResult?.text && (
+              <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                <h4 className="text-md font-semibold text-purple-400 mb-2">📝 Extracted Text</h4>
+                <div className="bg-gray-900 rounded p-3">
+                  <pre className="text-gray-300 text-sm whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {document.verificationResult.analysisDetails.ocrResult.text}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Recommendation */}
+            <div className={`rounded-lg p-4 border ${
+              document.status === 'verified' ? 'bg-green-900 bg-opacity-50 border-green-500' :
+              document.status === 'pending_review' ? 'bg-yellow-900 bg-opacity-50 border-yellow-500' :
+              'bg-red-900 bg-opacity-50 border-red-500'
+            }`}>
+              <h4 className="text-md font-semibold text-white mb-2">🎯 Recommendation</h4>
+              <div className="text-sm">
+                {document.status === 'verified' && (
+                  <p className="text-green-300">✅ <strong>ACCEPT</strong> - Document passed all authenticity checks</p>
+                )}
+                {document.status === 'pending_review' && (
+                  <p className="text-yellow-300">⚠️ <strong>MANUAL REVIEW REQUIRED</strong> - Document requires human verification</p>
+                )}
+                {document.status === 'rejected' && (
+                  <p className="text-red-300">❌ <strong>REJECT</strong> - Document failed authenticity verification</p>
+                )}
+                {document.status === 'failed' && (
+                  <p className="text-red-300">❌ <strong>RESUBMIT</strong> - Document could not be processed</p>
+                )}
+              </div>
             </div>
           </div>
         )}

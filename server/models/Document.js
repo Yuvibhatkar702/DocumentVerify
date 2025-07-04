@@ -63,14 +63,29 @@ const documentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['uploaded', 'processing', 'verified', 'failed', 'rejected', 'needs_review'],
+    enum: ['uploaded', 'processing', 'verified', 'failed', 'rejected', 'pending_review'],
     default: 'uploaded'
   },
   verificationResult: {
     confidence: { type: Number, min: 0, max: 100 },
     extractedData: mongoose.Schema.Types.Mixed,
-    authenticity: { type: String, enum: ['authentic', 'suspicious', 'forged', 'unknown'] },
-    issues: [String]
+    authenticity: { type: String, enum: ['authentic', 'suspicious', 'fake', 'unknown'] },
+    issues: [String],
+    analysisDetails: {
+      aiAnalysis: mongoose.Schema.Types.Mixed,
+      formatValidation: mongoose.Schema.Types.Mixed,
+      ocrResult: {
+        text: String,
+        confidence: Number
+      },
+      signatureDetection: {
+        detected: Boolean,
+        confidence: Number
+      },
+      qualityScore: Number,
+      anomalies: [String],
+      processingTime: Number
+    }
   },
   uploadedAt: {
     type: Date,

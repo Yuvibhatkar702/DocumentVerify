@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { getDocuments } from '../services/documentService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import DocumentDetailsModal from '../components/DocumentDetailsModal';
 
 const Dashboard = () => {
   const [documents, setDocuments] = useState([]);
@@ -13,6 +14,8 @@ const Dashboard = () => {
     pending: 0,
     failed: 0
   });
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
@@ -127,6 +130,17 @@ const Dashboard = () => {
     fetchDocuments();
   };
 
+  // Modal handler functions
+  const handleViewDetails = (document) => {
+    setSelectedDocument(document);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDocument(null);
+  };
+
   // Logout handler
   const handleLogout = () => {
     logout();
@@ -181,7 +195,9 @@ const Dashboard = () => {
         <div className="space-y-2 mb-4">
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-400">Confidence:</span>
-            <span className="text-xs font-medium text-white">{document.confidence || 0}%</span>
+            <span className="text-xs font-medium text-white">
+              {document.verificationResult?.confidence || 0}%
+            </span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-400">Uploaded:</span>
@@ -211,11 +227,7 @@ const Dashboard = () => {
 
         <div className="flex space-x-2">
           <button
-            onClick={() => {
-              console.log('View document details:', document.id);
-              // You can navigate to document details page here
-              // navigate(`/document/${document.id}`);
-            }}
+            onClick={() => handleViewDetails(document)}
             className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs py-2 px-3 rounded border border-blue-600/30 transition-colors duration-200"
           >
             View Details
@@ -440,6 +452,15 @@ const Dashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* Document Details Modal */}
+        {isModalOpen && (
+          <DocumentDetailsModal 
+            document={selectedDocument}
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+          />
+        )}
       </div>
     </div>
   );
