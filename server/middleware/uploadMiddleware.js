@@ -23,11 +23,16 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
+  console.log('=== MULTER FILE FILTER ===');
   console.log('File filter checking file:', {
     originalname: file.originalname,
     mimetype: file.mimetype,
-    size: file.size
+    size: file.size,
+    fieldname: file.fieldname,
+    encoding: file.encoding
   });
+  console.log('Request headers in filter:', req.headers);
+  console.log('=== END FILE FILTER DEBUG ===');
   
   // Allowed file types - expanded list
   const allowedTypes = [
@@ -65,7 +70,15 @@ const upload = multer({
 
 // Error handling middleware for multer
 const uploadErrorHandler = (error, req, res, next) => {
+  console.error('=== MULTER ERROR HANDLER ===');
   console.error('Multer error:', error);
+  console.error('Error type:', error.constructor.name);
+  console.error('Error code:', error.code);
+  console.error('Error message:', error.message);
+  console.error('Request file:', req.file);
+  console.error('Request body:', req.body);
+  console.error('Request headers:', req.headers);
+  console.error('=== END ERROR HANDLER DEBUG ===');
   
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
@@ -98,4 +111,5 @@ const uploadErrorHandler = (error, req, res, next) => {
 };
 
 module.exports = upload;
+module.exports.uploadErrorHandler = uploadErrorHandler;
 module.exports.uploadErrorHandler = uploadErrorHandler;

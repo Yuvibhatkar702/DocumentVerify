@@ -22,7 +22,7 @@ const uploadValidation = [
       'marriage-certificate', 'academic-certificate', 'professional-certificate',
       'visa', 'work-permit', 'residence-permit', 'social-security-card',
       'voter-id', 'utility-bill', 'bank-statement', 'insurance-card',
-      'medical-certificate', 'tax-document', 'property-deed', 'other'
+      'medical-certificate', 'tax-document', 'property-deed', 'aadhar-card', 'other'
     ])
     .withMessage('Invalid document type')
 ];

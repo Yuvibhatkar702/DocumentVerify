@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:50011/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,11 +17,15 @@ api.interceptors.request.use((config) => {
 
 export const uploadDocument = async (file, documentType) => {
   try {
+    console.log('=== FRONTEND UPLOAD START ===');
     console.log('DocumentService: Starting upload');
     console.log('File details:', {
       name: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      lastModified: file.lastModified,
+      instanceof: file instanceof File,
+      instanceof_Blob: file instanceof Blob
     });
     console.log('Document type:', documentType);
     
@@ -30,11 +34,18 @@ export const uploadDocument = async (file, documentType) => {
     formData.append('documentType', documentType);
     
     // Log form data contents
+    console.log('FormData entries:');
     for (let [key, value] of formData.entries()) {
       console.log(`FormData ${key}:`, value);
+      if (value instanceof File) {
+        console.log(`  File details: name=${value.name}, size=${value.size}, type=${value.type}`);
+      }
     }
     
+    const token = localStorage.getItem('token');
+    console.log('Auth token present:', !!token);
     console.log('Making request to:', `${API_BASE_URL}/documents/upload`);
+    console.log('=== END FRONTEND UPLOAD DEBUG ===');
     
     const response = await api.post('/documents/upload', formData, {
       // Don't set Content-Type header - let browser set it automatically for FormData

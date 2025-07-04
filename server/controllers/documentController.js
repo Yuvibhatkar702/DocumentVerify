@@ -1,67 +1,32 @@
 const Document = require('../models/Document');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const AIMlService = require('../services/aiMlService');
-
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = 'uploads/documents';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// File filter to accept images and PDFs
-const fileFilter = (req, file, cb) => {
-  console.log('File filter - MIME type:', file.mimetype);
-  console.log('File filter - Original name:', file.originalname);
-  
-  const allowedMimeTypes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png', 
-    'image/gif',
-    'image/webp',
-    'application/pdf',
-    'image/tiff',
-    'image/bmp'
-  ];
-  
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.tiff', '.bmp'];
-  const fileExt = path.extname(file.originalname).toLowerCase();
-  
-  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
-    cb(null, true);
-  } else {
-    console.log('File rejected - Invalid type:', file.mimetype, fileExt);
-    cb(new Error(`Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')} and extensions: ${allowedExtensions.join(', ')}`), false);
-  }
-};
-
-const upload = multer({ 
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  }
-});
 
 // Upload document
 const uploadDocument = async (req, res) => {
   try {
     console.log('=== UPLOAD REQUEST RECEIVED ===');
-    console.log('Request headers:', req.headers);
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file);
-    console.log('User from auth middleware:', req.user);
+    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request file:', req.file ? {
+      fieldname: req.file.fieldname,
+      originalname: req.file.originalname,
+      encoding: req.file.encoding,
+      mimetype: req.file.mimetype,
+      destination: req.file.destination,
+      filename: req.file.filename,
+      path: req.file.path,
+      size: req.file.size
+    } : 'NO FILE RECEIVED');
+    console.log('User from auth middleware:', req.user ? {
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name
+    } : 'NO USER DATA');
+    console.log('Raw request URL:', req.url);
+    console.log('Raw request method:', req.method);
+    console.log('Content-Type header:', req.headers['content-type']);
     console.log('=== END UPLOAD DEBUG INFO ===');
 
     // Check if user is authenticated
@@ -98,7 +63,7 @@ const uploadDocument = async (req, res) => {
       'marriage-certificate', 'academic-certificate', 'professional-certificate',
       'visa', 'work-permit', 'residence-permit', 'social-security-card',
       'voter-id', 'utility-bill', 'bank-statement', 'insurance-card',
-      'medical-certificate', 'tax-document', 'property-deed', 'other'
+      'medical-certificate', 'tax-document', 'property-deed', 'aadhar-card', 'other'
     ];
 
     if (!validDocumentTypes.includes(documentType)) {
@@ -453,7 +418,6 @@ const deleteDocument = async (req, res) => {
 };
 
 module.exports = {
-  upload,
   uploadDocument,
   getDocuments,
   getDocument: getDocumentById,
