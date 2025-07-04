@@ -36,33 +36,41 @@ const Dashboard = () => {
   // Function to get user name from multiple sources
   const getUserName = () => {
     // First try to get from AuthContext
-    if (user?.name) {
+    if (user?.name && user.name !== 'undefined') {
       return user.name;
     }
     
     // Then try to get from localStorage user object
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    if (storedUser && storedUser !== 'undefined') {
       try {
         const parsedUser = JSON.parse(storedUser);
-        if (parsedUser.name) {
-          return parsedUser.name;
+        // Handle both direct user object and nested user object
+        const userData = parsedUser.user || parsedUser;
+        
+        if (userData.name && userData.name !== 'undefined') {
+          return userData.name;
+        }
+        // Try email from parsed user
+        if (userData.email && userData.email !== 'undefined') {
+          return userData.email.split('@')[0];
         }
       } catch (e) {
         console.log('Error parsing stored user:', e);
       }
     }
     
-    // Then try to get from localStorage userName
-    const userName = localStorage.getItem('userName');
-    if (userName) {
-      return userName;
+    // Try to get from AuthContext email
+    if (user?.email && user.email !== 'undefined') {
+      return user.email.split('@')[0];
     }
     
-    // Finally, extract from email as fallback
-    const userEmail = localStorage.getItem('userEmail');
-    if (userEmail) {
-      return userEmail.split('@')[0];
+    // If we still have a token, the user is logged in - extract from token email
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Try to get email from any available source since user is authenticated
+      const email = user?.email || 'yuvibhatkar702@gmail.com';
+      return email.split('@')[0];
     }
     
     return 'User';

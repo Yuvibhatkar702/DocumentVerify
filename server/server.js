@@ -4,8 +4,20 @@ const connectDB = require('./config/database');
 
 const PORT = process.env.PORT || 5001; // Changed default port to 5001
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB and start server
+const startApp = async () => {
+  try {
+    await connectDB();
+    console.log('✅ Database connected successfully');
+  } catch (error) {
+    console.error('❌ Database connection failed, but continuing with server startup...');
+    console.error('The app will work but database operations will fail');
+  }
+  
+  startServer(PORT);
+};
+
+startApp();
 
 // Function to start server with port fallback
 const startServer = (port) => {

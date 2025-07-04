@@ -12,11 +12,30 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       if (token) {
         try {
+          // First try to get user from localStorage
+          const storedUser = localStorage.getItem('user');
+          if (storedUser && storedUser !== 'undefined') {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              if (parsedUser && parsedUser.id) {
+                setUser(parsedUser);
+              }
+            } catch (e) {
+              console.log('Error parsing stored user:', e);
+            }
+          }
+          
+          // Then try to get current user from API
           const userData = await getCurrentUser(token);
-          setUser(userData);
+          if (userData) {
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+          }
         } catch (error) {
           console.error('Auth check failed:', error);
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userId');
           // Don't set user to maintain null state
         }
       }
@@ -33,6 +52,7 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('token', token);
       localStorage.setItem('userId', userData.id);
+      localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       
       return response;
@@ -61,6 +81,7 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('token', token);
       localStorage.setItem('userId', userData.id);
+      localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       
       return response;
@@ -97,6 +118,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
+    localStorage.removeItem('user');
     setUser(null);
   };
 

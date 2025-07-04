@@ -12,10 +12,13 @@ const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+      socketTimeoutMS: 45000, // 45 seconds socket timeout
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     console.log(`Database Name: ${conn.connection.name}`);
+    return conn;
   } catch (error) {
     console.error('Database connection error:', error);
     console.error('Please ensure MongoDB is running or provide a valid MONGODB_URI');
@@ -29,6 +32,7 @@ const connectDB = async () => {
       process.exit(1);
     } else {
       console.warn('Continuing without database connection...');
+      // Don't throw error in development to allow server to start
     }
   }
 };
