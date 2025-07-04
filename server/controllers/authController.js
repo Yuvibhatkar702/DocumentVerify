@@ -4,7 +4,9 @@ const { validationResult } = require('express-validator');
 
 // Generate JWT token
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+  const secret = process.env.JWT_SECRET || 'your-default-secret-key-change-in-production';
+  console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+  return jwt.sign({ userId }, secret, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 };
@@ -12,8 +14,11 @@ const generateToken = (userId) => {
 // Register user
 const register = async (req, res) => {
   try {
+    console.log('Registration attempt:', { name: req.body.name, email: req.body.email });
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Please check your input and fix the following issues:',
@@ -26,6 +31,7 @@ const register = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      console.log('User already exists:', email);
       return res.status(400).json({
         success: false,
         message: 'An account with this email already exists. Please try logging in or use a different email.'
@@ -33,11 +39,14 @@ const register = async (req, res) => {
     }
 
     // Create new user
+    console.log('Creating new user:', { name, email });
     const user = new User({ name, email, password });
     await user.save();
+    console.log('User created successfully:', user._id);
 
     // Generate token
     const token = generateToken(user._id);
+    console.log('Token generated successfully');
 
     res.status(201).json({
       success: true,

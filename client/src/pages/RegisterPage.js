@@ -36,10 +36,19 @@ const RegisterPage = () => {
       return false;
     }
     
-    // Check password complexity
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
-    if (!passwordRegex.test(formData.password)) {
-      setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+    // Check password complexity with more specific messages
+    if (!/[a-z]/.test(formData.password)) {
+      setError('Password must contain at least one lowercase letter (a-z)');
+      return false;
+    }
+    
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('Password must contain at least one uppercase letter (A-Z)');
+      return false;
+    }
+    
+    if (!/\d/.test(formData.password)) {
+      setError('Password must contain at least one number (0-9)');
       return false;
     }
     
@@ -144,8 +153,27 @@ const RegisterPage = () => {
                 placeholder="Create password"
                 required
               />
-              <div className="text-xs text-gray-400 mt-1">
-                Password must contain: uppercase, lowercase, and number (min 6 chars)
+              <div className="text-xs mt-1 space-y-1">
+                <div className="text-gray-400">Password requirements:</div>
+                <div className={`flex items-center gap-1 ${formData.password.length >= 6 ? 'text-green-400' : 'text-gray-400'}`}>
+                  <span>{formData.password.length >= 6 ? '✅' : '⚪'}</span>
+                  <span>At least 6 characters</span>
+                </div>
+                <div className={`flex items-center gap-1 ${/[a-z]/.test(formData.password) ? 'text-green-400' : 'text-gray-400'}`}>
+                  <span>{/[a-z]/.test(formData.password) ? '✅' : '⚪'}</span>
+                  <span>One lowercase letter</span>
+                </div>
+                <div className={`flex items-center gap-1 ${/[A-Z]/.test(formData.password) ? 'text-green-400' : 'text-gray-400'}`}>
+                  <span>{/[A-Z]/.test(formData.password) ? '✅' : '⚪'}</span>
+                  <span>One uppercase letter</span>
+                </div>
+                <div className={`flex items-center gap-1 ${/\d/.test(formData.password) ? 'text-green-400' : 'text-gray-400'}`}>
+                  <span>{/\d/.test(formData.password) ? '✅' : '⚪'}</span>
+                  <span>One number</span>
+                </div>
+                <div className="text-xs text-blue-300 mt-1">
+                  Examples: Password123, DocVerify1, MyPass456
+                </div>
               </div>
             </div>
 
