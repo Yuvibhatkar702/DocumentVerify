@@ -9,7 +9,67 @@ const UploadForm = ({ onUploadSuccess }) => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
+  const [validationError, setValidationError] = useState('');
   const navigate = useNavigate();
+
+  // Document validation function
+  const validateDocumentType = (file, selectedType) => {
+    if (!file || !selectedType) return { isValid: false, message: 'Please select both file and document type' };
+
+    const fileName = file.name.toLowerCase();
+    const validationRules = {
+      'aadhar-card': {
+        keywords: ['aadhar', 'aadhaar', 'uid', 'unique', 'identity'],
+        message: 'Please upload a valid Aadhar card document. The file should contain "aadhar" or related keywords in the filename.'
+      },
+      'passport': {
+        keywords: ['passport', 'pass', 'travel'],
+        message: 'Please upload a valid passport document. The file should contain "passport" or related keywords in the filename.'
+      },
+      'driver-license': {
+        keywords: ['license', 'licence', 'driving', 'dl', 'driver'],
+        message: 'Please upload a valid driver\'s license document. The file should contain "license" or related keywords in the filename.'
+      },
+      'id-card': {
+        keywords: ['id', 'identity', 'national', 'card'],
+        message: 'Please upload a valid ID card document. The file should contain "id" or related keywords in the filename.'
+      },
+      'birth-certificate': {
+        keywords: ['birth', 'certificate', 'born'],
+        message: 'Please upload a valid birth certificate document.'
+      },
+      'academic-certificate': {
+        keywords: ['degree', 'certificate', 'diploma', 'academic', 'education', 'graduation'],
+        message: 'Please upload a valid academic certificate document.'
+      },
+      'bank-statement': {
+        keywords: ['bank', 'statement', 'account', 'transaction'],
+        message: 'Please upload a valid bank statement document.'
+      },
+      'utility-bill': {
+        keywords: ['utility', 'bill', 'electricity', 'water', 'gas', 'phone', 'internet'],
+        message: 'Please upload a valid utility bill document.'
+      }
+    };
+
+    const rule = validationRules[selectedType];
+    
+    // If no specific rule exists, allow any file (for "other" documents)
+    if (!rule) {
+      return { isValid: true, message: '' };
+    }
+
+    // Check if filename contains any of the required keywords
+    const hasValidKeyword = rule.keywords.some(keyword => 
+      fileName.includes(keyword)
+    );
+
+    if (!hasValidKeyword) {
+      return { isValid: false, message: rule.message };
+    }
+
+    return { isValid: true, message: '' };
+  };
 
   // Function to save document to localStorage
   const saveDocumentToLocal = () => {
@@ -127,11 +187,35 @@ const UploadForm = ({ onUploadSuccess }) => {
       }
 
       setFile(selectedFile);
+      setValidationError(''); // Clear any previous validation errors
+      
+      // If document type is already selected, validate the match
+      if (documentType) {
+        const validation = validateDocumentType(selectedFile, documentType);
+        if (!validation.isValid) {
+          setValidationError(validation.message);
+        }
+      }
+      
       console.log('File selected:', {
         name: selectedFile.name,
         size: selectedFile.size,
         type: selectedFile.type
       });
+    }
+  };
+
+  const handleDocumentTypeChange = (e) => {
+    const selectedType = e.target.value;
+    setDocumentType(selectedType);
+    setValidationError(''); // Clear any previous validation errors
+    
+    // If file is already selected, validate the match
+    if (file) {
+      const validation = validateDocumentType(file, selectedType);
+      if (!validation.isValid) {
+        setValidationError(validation.message);
+      }
     }
   };
 
@@ -142,6 +226,14 @@ const UploadForm = ({ onUploadSuccess }) => {
       return;
     }
 
+    // Validate document type match
+    const validation = validateDocumentType(file, documentType);
+    if (!validation.isValid) {
+      setValidationError(validation.message);
+      alert(`Document validation failed: ${validation.message}`);
+      return;
+    }
+
     // Final validation
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be less than 10MB');
@@ -149,6 +241,7 @@ const UploadForm = ({ onUploadSuccess }) => {
     }
 
     setLoading(true);
+    setValidationError(''); // Clear validation errors
     
     try {
       console.log('Starting upload...');
@@ -301,11 +394,12 @@ const UploadForm = ({ onUploadSuccess }) => {
             <select
               id="documentType"
               value={documentType}
-              onChange={(e) => setDocumentType(e.target.value)}
+              onChange={handleDocumentTypeChange}
               required
               style={{ color: 'black' }}
             >
               <option value="" style={{ color: 'black' }}>Select Document Type</option>
+              <option value="aadhar-card" style={{ color: 'black' }}>Aadhar Card</option>
               <option value="passport" style={{ color: 'black' }}>Passport</option>
               <option value="id-card" style={{ color: 'black' }}>National ID Card</option>
               <option value="driver-license" style={{ color: 'black' }}>Driver's License</option>
@@ -327,6 +421,28 @@ const UploadForm = ({ onUploadSuccess }) => {
               <option value="other" style={{ color: 'black' }}>Other Document</option>
             </select>
           </div>
+          
+          {/* Validation Error Display */}
+          {validationError && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: '6px',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#ef4444'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>⚠️</span>
+                <div>
+                  <strong>Document Type Mismatch</strong>
+                  <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                    {validationError}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="form-group">
             <label htmlFor="file">Choose Document:</label>
@@ -392,12 +508,12 @@ const UploadForm = ({ onUploadSuccess }) => {
           
           <button 
             type="submit" 
-            disabled={loading || !file || !documentType}
+            disabled={loading || !file || !documentType || validationError}
             style={{
-              opacity: loading || !file || !documentType ? 0.6 : 1,
-              cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer',
+              opacity: loading || !file || !documentType || validationError ? 0.6 : 1,
+              cursor: loading || !file || !documentType || validationError ? 'not-allowed' : 'pointer',
               padding: '12px 24px',
-              backgroundColor: loading || !file || !documentType ? '#374151' : '#10b981',
+              backgroundColor: loading || !file || !documentType || validationError ? '#374151' : '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
