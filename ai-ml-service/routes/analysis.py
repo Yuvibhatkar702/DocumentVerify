@@ -143,20 +143,20 @@ def analyze_image_quality(image):
         
         # Calculate sharpness using Laplacian variance
         laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-        sharpness_score = min(laplacian_var / 1000, 1.0)
+        sharpness_score = min(float(laplacian_var) / 1000, 1.0)
         
         # Calculate brightness
-        brightness = np.mean(gray) / 255.0
+        brightness = float(np.mean(gray)) / 255.0
         brightness_score = 1.0 - abs(brightness - 0.5) * 2
         
         # Calculate contrast
-        contrast = np.std(gray) / 255.0
+        contrast = float(np.std(gray)) / 255.0
         contrast_score = min(contrast * 4, 1.0)
         
         # Overall quality score
         quality_score = (sharpness_score * 0.4 + brightness_score * 0.3 + contrast_score * 0.3)
         
-        return quality_score
+        return float(quality_score)
         
     except Exception as e:
         logger.error(f"Quality analysis error: {str(e)}")
@@ -178,14 +178,22 @@ def perform_ocr_analysis(image):
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
         
         # Perform OCR
-        text = pytesseract.image_to_string(thresh)
+        try:
+            text = pytesseract.image_to_string(thresh)
+        except Exception as ocr_error:
+            logger.error(f"Tesseract OCR error: {str(ocr_error)}")
+            # Fallback: Return empty text with low accuracy
+            return {
+                "text": "",
+                "accuracy": 0.1
+            }
         
         # Calculate OCR accuracy based on text characteristics
         accuracy = calculate_ocr_accuracy(text)
         
         return {
             "text": text.strip(),
-            "accuracy": accuracy
+            "accuracy": float(accuracy)
         }
         
     except Exception as e:
@@ -213,8 +221,8 @@ def calculate_ocr_accuracy(text):
     if total_chars == 0:
         return 0.0
     
-    accuracy = meaningful_chars / total_chars
-    return min(accuracy, 1.0)
+    accuracy = float(meaningful_chars) / float(total_chars)
+    return min(float(accuracy), 1.0)
 
 def detect_signature_presence(image):
     """
@@ -236,7 +244,7 @@ def detect_signature_presence(image):
             if 100 < area < 10000:  # Signature-like area
                 signature_contours += 1
         
-        return signature_contours > 0
+        return bool(signature_contours > 0)
         
     except Exception as e:
         logger.error(f"Signature detection error: {str(e)}")
@@ -248,7 +256,7 @@ def validate_document_format(image, document_type):
     """
     try:
         height, width = image.shape[:2]
-        aspect_ratio = width / height
+        aspect_ratio = float(width) / float(height)
         
         format_validation = {
             "dimensions_valid": False,
@@ -259,7 +267,7 @@ def validate_document_format(image, document_type):
         # Basic dimension validation
         if width >= 600 and height >= 400:
             format_validation["dimensions_valid"] = True
-            format_validation["size_score"] = min((width * height) / (1200 * 800), 1.0)
+            format_validation["size_score"] = min(float(width * height) / (1200 * 800), 1.0)
         
         # Aspect ratio validation based on document type
         expected_ratios = {
@@ -271,7 +279,7 @@ def validate_document_format(image, document_type):
         
         if document_type in expected_ratios:
             min_ratio, max_ratio = expected_ratios[document_type]
-            format_validation["aspect_ratio_valid"] = min_ratio <= aspect_ratio <= max_ratio
+            format_validation["aspect_ratio_valid"] = bool(min_ratio <= aspect_ratio <= max_ratio)
         else:
             format_validation["aspect_ratio_valid"] = True  # Unknown type, assume valid
         
@@ -312,13 +320,15 @@ def detect_anomalies(image, ocr_text, filename):
         # 5. Check for digital artifacts (simple check)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 50, 150)
-        edge_density = np.sum(edges > 0) / edges.size
+        edge_density = float(np.sum(edges > 0)) / float(edges.size)
         if edge_density > 0.3:  # Too many edges might indicate digital manipulation
             anomalies.append("High edge density detected (possible digital manipulation)")
         
         # 6. Check for perfect uniformity (possible digital creation)
         hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-        if np.max(hist) / np.sum(hist) > 0.8:  # Too uniform
+        max_hist = float(np.max(hist))
+        sum_hist = float(np.sum(hist))
+        if max_hist / sum_hist > 0.8:  # Too uniform
             anomalies.append("Unusual color distribution detected")
         
     except Exception as e:
@@ -332,7 +342,7 @@ def calculate_confidence_score(quality_score, ocr_accuracy, signature_detected, 
     Calculate overall confidence score
     """
     # Base score from quality and OCR
-    base_score = (quality_score * 0.4 + ocr_accuracy * 0.3)
+    base_score = (float(quality_score) * 0.4 + float(ocr_accuracy) * 0.3)
     
     # Format validation bonus
     format_bonus = 0.0
@@ -345,9 +355,9 @@ def calculate_confidence_score(quality_score, ocr_accuracy, signature_detected, 
     signature_bonus = 0.1 if signature_detected else 0.0
     
     # Anomaly penalty - critical for fake detection
-    anomaly_penalty = anomaly_count * 0.3  # Increased penalty for anomalies
+    anomaly_penalty = float(anomaly_count) * 0.3  # Increased penalty for anomalies
     
     # Calculate final score
     final_score = base_score + format_bonus + signature_bonus - anomaly_penalty
     
-    return max(0.0, min(1.0, final_score))
+    return float(max(0.0, min(1.0, final_score)))

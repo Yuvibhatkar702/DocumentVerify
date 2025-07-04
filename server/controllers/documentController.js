@@ -174,6 +174,25 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
   try {
     console.log(`Starting AI/ML processing for document ${documentId}`);
     
+    // Map document types for AI/ML service
+    const mapDocumentTypeForAI = (frontendType) => {
+      const typeMapping = {
+        'voter-id': 'id-card',
+        'id-card': 'id-card',
+        'passport': 'passport',
+        'driver-license': 'driver-license',
+        'birth-certificate': 'certificate',
+        'marriage-certificate': 'certificate',
+        'academic-certificate': 'certificate',
+        'professional-certificate': 'certificate',
+        'medical-certificate': 'certificate'
+      };
+      return typeMapping[frontendType] || 'other';
+    };
+    
+    const aiDocumentType = mapDocumentTypeForAI(documentType);
+    console.log(`Mapping document type: ${documentType} -> ${aiDocumentType}`);
+    
     // Update status to processing
     await Document.findByIdAndUpdate(documentId, {
       status: 'processing'
@@ -191,10 +210,10 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     }
     
     // Perform comprehensive document analysis
-    const analysisResult = await AIMlService.analyzeDocument(filePath, documentType);
+    const analysisResult = await AIMlService.analyzeDocument(filePath, aiDocumentType);
     
     // Perform format validation
-    const formatValidation = await AIMlService.validateDocumentFormat(filePath, documentType);
+    const formatValidation = await AIMlService.validateDocumentFormat(filePath, aiDocumentType);
     
     // Perform OCR
     const ocrResult = await AIMlService.performOCR(filePath);
@@ -232,14 +251,14 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
           aiAnalysis: analysisResult,
           formatValidation: formatValidation,
           ocrResult: {
-            text: ocrResult.detected_text || '',
+            text: ocrResult.text || ocrResult.detected_text || '',
             confidence: ocrResult.confidence || 0
           },
           signatureDetection: {
-            detected: signatureResult.signature_detected || false,
+            detected: signatureResult.signature_detected || signatureResult.found || false,
             confidence: signatureResult.confidence || 0
           },
-          qualityScore: analysisResult.verificationDetails?.qualityScore || 0,
+          qualityScore: analysisResult.verificationDetails?.qualityScore || analysisResult.quality_score || 0,
           anomalies: analysisResult.anomalies || []
         }
       },

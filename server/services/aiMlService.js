@@ -11,7 +11,7 @@ class AIMlService {
       formData.append('file', fs.createReadStream(filePath));
       formData.append('document_type', documentType);
 
-      const response = await axios.post(`${AI_ML_SERVICE_URL}/analyze`, formData, {
+      const response = await axios.post(`${AI_ML_SERVICE_URL}/api/v1/analyze`, formData, {
         headers: {
           ...formData.getHeaders(),
           'Content-Type': 'multipart/form-data'
@@ -40,7 +40,7 @@ class AIMlService {
       const formData = new FormData();
       formData.append('file', fs.createReadStream(filePath));
 
-      const response = await axios.post(`${AI_ML_SERVICE_URL}/ocr`, formData, {
+      const response = await axios.post(`${AI_ML_SERVICE_URL}/api/v1/ocr`, formData, {
         headers: {
           ...formData.getHeaders(),
           'Content-Type': 'multipart/form-data'
@@ -60,7 +60,7 @@ class AIMlService {
       const formData = new FormData();
       formData.append('file', fs.createReadStream(filePath));
 
-      const response = await axios.post(`${AI_ML_SERVICE_URL}/detect-signature`, formData, {
+      const response = await axios.post(`${AI_ML_SERVICE_URL}/api/v1/detect-signature`, formData, {
         headers: {
           ...formData.getHeaders(),
           'Content-Type': 'multipart/form-data'
@@ -81,7 +81,7 @@ class AIMlService {
       formData.append('file', fs.createReadStream(filePath));
       formData.append('document_type', documentType);
 
-      const response = await axios.post(`${AI_ML_SERVICE_URL}/validate-format`, formData, {
+      const response = await axios.post(`${AI_ML_SERVICE_URL}/api/v1/validate-format`, formData, {
         headers: {
           ...formData.getHeaders(),
           'Content-Type': 'multipart/form-data'

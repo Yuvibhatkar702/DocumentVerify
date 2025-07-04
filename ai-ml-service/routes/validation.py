@@ -57,7 +57,7 @@ def perform_format_validation(image, document_type):
     
     try:
         height, width = image.shape[:2]
-        aspect_ratio = width / height
+        aspect_ratio = float(width) / float(height)
         
         # Get document type specifications
         doc_specs = get_document_specifications(document_type)
@@ -76,30 +76,30 @@ def perform_format_validation(image, document_type):
         
         # Calculate overall score
         overall_score = (
-            dimension_score * 0.25 +
-            aspect_score * 0.25 +
-            quality_score * 0.25 +
-            structure_score * 0.25
+            float(dimension_score) * 0.25 +
+            float(aspect_score) * 0.25 +
+            float(quality_score) * 0.25 +
+            float(structure_score) * 0.25
         )
         
         validation_result.update({
-            "is_valid": overall_score > 0.6,
-            "score": overall_score,
+            "is_valid": bool(overall_score > 0.6),
+            "score": float(overall_score),
             "details": {
                 "dimensions": {
-                    "width": width,
-                    "height": height,
-                    "score": dimension_score
+                    "width": int(width),
+                    "height": int(height),
+                    "score": float(dimension_score)
                 },
                 "aspect_ratio": {
-                    "value": aspect_ratio,
-                    "score": aspect_score
+                    "value": float(aspect_ratio),
+                    "score": float(aspect_score)
                 },
                 "quality": {
-                    "score": quality_score
+                    "score": float(quality_score)
                 },
                 "structure": {
-                    "score": structure_score
+                    "score": float(structure_score)
                 }
             }
         })
@@ -170,10 +170,10 @@ def validate_dimensions(width, height, specs):
             return 0.0
         
         # Score based on how close to recommended dimensions
-        width_score = min(width / rec_w, 1.0)
-        height_score = min(height / rec_h, 1.0)
+        width_score = min(float(width) / float(rec_w), 1.0)
+        height_score = min(float(height) / float(rec_h), 1.0)
         
-        return (width_score + height_score) / 2
+        return float((width_score + height_score) / 2)
         
     except Exception as e:
         logger.error(f"Dimension validation error: {str(e)}")
@@ -190,7 +190,7 @@ def validate_aspect_ratio(aspect_ratio, specs):
             # Score based on how close to optimal (middle of range)
             optimal = (ar_min + ar_max) / 2
             deviation = abs(aspect_ratio - optimal) / (ar_max - ar_min)
-            return 1.0 - deviation
+            return float(1.0 - deviation)
         else:
             return 0.0
             
