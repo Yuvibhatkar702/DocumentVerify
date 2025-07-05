@@ -3,100 +3,6 @@ import { uploadDocument } from '../services/documentService';
 import { useNavigate } from 'react-router-dom';
 import { useCategory } from '../contexts/CategoryContext';
 
-// Document structure validation function
-const validateDocumentStructure = (documentType, file) => {
-  // Basic validation rules for different document types
-  const validationRules = {
-    // ID Documents
-    'aadhar-card': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 5 * 1024 * 1024, // 5MB
-      message: 'Aadhar card should be a clear image showing the 12-digit number'
-    },
-    'pan-card': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 5 * 1024 * 1024,
-      message: 'PAN card should be a clear image showing the 10-character PAN number'
-    },
-    'passport': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 5 * 1024 * 1024,
-      message: 'Passport should be a clear image of the main page with photo'
-    },
-    'driving-license': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 5 * 1024 * 1024,
-      message: 'Driving license should be a clear image of both sides'
-    },
-    
-    // Educational Documents
-    'ssc-10th-marksheet': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 10 * 1024 * 1024,
-      message: 'SSC marksheet should be a clear image or PDF showing grades'
-    },
-    'hsc-12th-marksheet': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 10 * 1024 * 1024,
-      message: 'HSC marksheet should be a clear image or PDF showing grades'
-    },
-    'bachelors-degree': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
-      maxSize: 10 * 1024 * 1024,
-      message: 'Degree certificate should be a clear image or PDF'
-    },
-    
-    // Financial Documents
-    'bank-statement': {
-      expectedFormats: ['application/pdf', 'image/jpeg', 'image/png'],
-      maxSize: 10 * 1024 * 1024,
-      message: 'Bank statement should preferably be a PDF or clear image'
-    },
-    'salary-slip': {
-      expectedFormats: ['application/pdf', 'image/jpeg', 'image/png'],
-      maxSize: 5 * 1024 * 1024,
-      message: 'Salary slip should be a clear image or PDF'
-    },
-    
-    // Medical Documents
-    'covid-vaccination-certificate': {
-      expectedFormats: ['application/pdf', 'image/jpeg', 'image/png'],
-      maxSize: 5 * 1024 * 1024,
-      message: 'Vaccination certificate should be a clear image or PDF'
-    },
-    
-    // Default for other document types
-    'default': {
-      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf', 'image/tiff', 'image/bmp'],
-      maxSize: 10 * 1024 * 1024,
-      message: 'Document should be a clear image or PDF'
-    }
-  };
-
-  const rules = validationRules[documentType] || validationRules.default;
-  
-  // Check file format
-  if (!rules.expectedFormats.includes(file.type)) {
-    return {
-      isValid: false,
-      message: `${rules.message}. Expected formats: ${rules.expectedFormats.join(', ')}`
-    };
-  }
-  
-  // Check file size
-  if (file.size > rules.maxSize) {
-    return {
-      isValid: false,
-      message: `File size should be less than ${(rules.maxSize / 1024 / 1024).toFixed(1)}MB for ${documentType}`
-    };
-  }
-  
-  return {
-    isValid: true,
-    message: 'Document structure validation passed'
-  };
-};
-
 const UploadForm = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -258,13 +164,6 @@ const UploadForm = ({ onUploadSuccess }) => {
       return;
     }
 
-    // Document structure validation based on document type
-    const documentStructureValidation = validateDocumentStructure(documentType, file);
-    if (!documentStructureValidation.isValid) {
-      alert(`Document validation failed: ${documentStructureValidation.message}`);
-      return;
-    }
-
     setLoading(true);
     
     try {
@@ -410,495 +309,602 @@ const UploadForm = ({ onUploadSuccess }) => {
   };
 
   return (
-    <div className="upload-form-container">
-      {!uploadSuccess ? (
-        <form onSubmit={handleSubmit} className="upload-form">
-          <div className="form-group">
-            <label htmlFor="documentType">Document Type:</label>
-            <select
-              id="documentType"
-              value={documentType}
-              onChange={(e) => setDocumentType(e.target.value)}
-              required
-              style={{ color: 'black' }}
-            >
-              <option value="" style={{ color: 'black' }}>Select Document Type</option>
-              {selectedCategory ? (
-                // Show only documents for selected category
-                allowedDocumentTypes.map(docType => (
-                  <option key={docType} value={docType} style={{ color: 'black' }}>
-                    {getDocumentTypeName(docType)}
-                  </option>
-                ))
-              ) : (
-                // Show all document types grouped by category
-                Object.entries(categories).map(([categoryId, category]) => (
-                  <optgroup key={categoryId} label={`${category.icon} ${category.name}`}>
-                    {category.documentTypes.map(docType => (
-                      <option key={docType} value={docType} style={{ color: 'black' }}>
-                        {getDocumentTypeName(docType)}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))
-              )}
-            </select>
-            
-            {selectedCategory && (
-              <div style={{ 
-                marginTop: '8px', 
-                fontSize: '12px', 
-                color: '#10b981',
-                padding: '8px',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderRadius: '6px',
-                border: '1px solid rgba(16, 185, 129, 0.2)'
-              }}>
-                📂 <strong>Category:</strong> {categories[selectedCategory]?.name}<br/>
-                📝 <strong>Description:</strong> {categories[selectedCategory]?.description}
-              </div>
-            )}
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="file">Choose Document:</label>
-            
-            {/* Beautiful Upload Button */}
+    <div style={{
+      background: 'transparent',
+      padding: '0',
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      <div style={{ maxWidth: '420px', margin: '0 auto' }}>
+        {!uploadSuccess ? (
+          /* Upload Form - Ultra Compact Premium Design */
+          <div style={{
+            background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+            borderRadius: '14px',
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.06), 0 3px 6px rgba(0, 0, 0, 0.03)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            position: 'relative'
+          }}>
+            {/* Ultra Compact Header */}
             <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '10px 14px',
+              textAlign: 'center',
+              color: 'white',
               position: 'relative',
-              display: 'inline-block',
-              width: '100%',
-              marginTop: '8px'
+              borderRadius: '14px 14px 0 0'
             }}>
-              <input
-                type="file"
-                id="file"
-                onChange={handleFileChange}
-                accept="image/*,.pdf,.tiff,.bmp"
-                required
-                style={{
-                  position: 'absolute',
-                  opacity: 0,
-                  width: '100%',
-                  height: '100%',
-                  cursor: 'pointer',
-                  zIndex: 2
-                }}
-              />
               <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '40px 20px',
-                border: '2px dashed #e5e7eb',
-                borderRadius: '12px',
-                backgroundColor: '#f9fafb',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer',
-                minHeight: '150px',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.borderColor = '#10b981';
-                e.target.style.backgroundColor = '#f0fdf4';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.backgroundColor = '#f9fafb';
-              }}
-              >
-                {/* Upload Icon */}
-                <div style={{
-                  fontSize: '48px',
-                  marginBottom: '16px',
-                  color: '#10b981'
-                }}>
-                  📤
-                </div>
-                
-                {/* Main Text */}
-                <div style={{
-                  fontSize: '18px',
+                fontSize: '18px',
+                marginBottom: '2px',
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'
+              }}>📤</div>
+              <h1 style={{
+                margin: 0,
+                fontSize: '15px',
+                fontWeight: '600',
+                letterSpacing: '-0.3px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>Document Upload</h1>
+              <p style={{
+                margin: '1px 0 0 0',
+                fontSize: '10px',
+                opacity: 0.9,
+                fontWeight: '400'
+              }}>AI-Powered • Secure • Instant</p>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ padding: '12px' }}>
+              {/* Ultra Compact Document Type Selector */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                borderRadius: '10px',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                transition: 'all 0.3s ease'
+              }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '12px',
                   fontWeight: '600',
                   color: '#374151',
-                  marginBottom: '8px'
+                  marginBottom: '6px',
+                  gap: '5px'
                 }}>
-                  {file ? file.name : 'Click to upload or drag & drop'}
-                </div>
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '5px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '9px'
+                  }}>📋</div>
+                  Document Type
+                </label>
+                <select
+                  id="documentType"
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '7px',
+                    fontSize: '13px',
+                    color: '#1f2937',
+                    backgroundColor: 'white',
+                    outline: 'none',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
+                    fontWeight: '500'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#667eea';
+                    e.target.style.boxShadow = '0 0 0 2px rgba(102, 126, 234, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.02)';
+                  }}
+                >
+                  <option value="">Select document type...</option>
+                  {selectedCategory ? (
+                    // Show only documents for selected category
+                    allowedDocumentTypes.map(docType => (
+                      <option key={docType} value={docType}>
+                        {getDocumentTypeName(docType)}
+                      </option>
+                    ))
+                  ) : (
+                    // Show all document types grouped by category
+                    Object.entries(categories).map(([categoryId, category]) => (
+                      <optgroup key={categoryId} label={`${category.icon} ${category.name}`}>
+                        {category.documentTypes.map(docType => (
+                          <option key={docType} value={docType}>
+                            {getDocumentTypeName(docType)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))
+                  )}
+                </select>
                 
-                {/* Subtitle */}
-                <div style={{
-                  fontSize: '14px',
-                  color: '#6b7280',
-                  marginBottom: '16px'
-                }}>
-                  {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Select your document file'}
-                </div>
-                
-                {/* Upload Button */}
-                <div style={{
-                  padding: '12px 24px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}>
-                  {file ? '📎 Change File' : '📁 Browse Files'}
-                </div>
-                
-                {/* Background Pattern */}
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)',
-                  zIndex: 1
-                }} />
+                {selectedCategory && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '6px 8px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '7px',
+                    fontSize: '10px',
+                    color: '#065f46',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      marginBottom: '1px'
+                    }}>
+                      <span style={{ fontSize: '11px' }}>{categories[selectedCategory]?.icon}</span>
+                      <strong style={{ fontSize: '11px' }}>{categories[selectedCategory]?.name}</strong>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '9px', opacity: 0.8 }}>
+                      {categories[selectedCategory]?.description}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-            
-            <div style={{ 
-              marginTop: '8px', 
-              fontSize: '12px', 
-              color: '#9ca3af',
-              padding: '8px',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              borderRadius: '6px',
-              border: '1px solid rgba(59, 130, 246, 0.2)'
-            }}>
-              📋 <strong>Supported formats:</strong> JPEG, PNG, GIF, WebP, PDF, TIFF, BMP<br/>
-              📏 <strong>Maximum size:</strong> 10MB
-            </div>
-            {file && (
-              <div style={{ 
-                marginTop: '12px',
-                padding: '12px',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(16, 185, 129, 0.2)'
-              }}>
-                <p style={{ color: '#10b981', fontSize: '14px', marginBottom: '6px', fontWeight: 'bold' }}>
-                  ✅ File Selected Successfully
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📄 Name:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
-                      {file.name}
-                    </p>
-                  </div>
-                  <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📊 Size:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>🏷️ Type:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
-                      {file.type || 'Unknown'}
-                    </p>
-                  </div>
-                  <div>
-                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📅 Modified:</span>
-                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
-                      {new Date(file.lastModified).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={loading || !file || !documentType}
-            style={{
-              opacity: loading || !file || !documentType ? 0.6 : 1,
-              cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer',
-              padding: '16px 32px',
-              background: loading || !file || !documentType 
-                ? 'linear-gradient(135deg, #6b7280 0%, #374151 100%)' 
-                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontWeight: '600',
-              transition: 'all 0.3s ease',
-              width: '100%',
-              marginTop: '24px',
-              boxShadow: loading || !file || !documentType 
-                ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
-                : '0 10px 25px -5px rgba(16, 185, 129, 0.3)',
-              transform: loading || !file || !documentType ? 'none' : 'translateY(-2px)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-            onMouseEnter={(e) => {
-              if (!loading && file && documentType) {
-                e.target.style.transform = 'translateY(-3px)';
-                e.target.style.boxShadow = '0 15px 30px -5px rgba(16, 185, 129, 0.4)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!loading && file && documentType) {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 10px 25px -5px rgba(16, 185, 129, 0.3)';
-              }
-            }}
-          >
-            {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                <span style={{
-                  display: 'inline-block',
-                  width: '20px',
-                  height: '20px',
-                  border: '3px solid transparent',
-                  borderTop: '3px solid white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                <span>Processing Document...</span>
-              </span>
-            ) : (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '20px' }}>🔐</span>
-                <span>Upload & Verify Document</span>
-              </span>
-            )}
-            
-            {/* Button shine effect */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: '-100%',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
-              transition: 'left 0.5s ease',
-              zIndex: 1
-            }} />
-          </button>
-        </form>
-      ) : (
-        <div className="verification-progress">
-          {/* Success Header */}
-          <div className="success-header" style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '10px' }}>
-              <span className="success-icon">✅</span>
-            </div>
-            <h2 style={{ color: '#10b981', fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '10px' }}>
-              Document Uploaded Successfully!
-            </h2>
-            <p style={{ color: '#e5e7eb', fontSize: '1rem' }}>
-              Your document is now being processed by our AI verification system
-            </p>
-          </div>
 
-          {/* Progress Bar */}
-          <div style={{ marginBottom: '25px' }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '10px' 
-            }}>
-              <span style={{ color: '#e5e7eb', fontSize: '0.9rem' }}>Verification Progress</span>
-              <span style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                {verificationProgress}%
-              </span>
-            </div>
+              {/* Ultra Compact File Upload Zone */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                borderRadius: '10px',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                transition: 'all 0.3s ease'
+              }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '6px',
+                  gap: '5px'
+                }}>
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '5px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '9px'
+                  }}>📎</div>
+                  Choose File
+                </label>
+                
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="file"
+                    id="file"
+                    onChange={handleFileChange}
+                    accept="image/*,.pdf,.tiff,.bmp"
+                    required
+                    style={{
+                      position: 'absolute',
+                      opacity: 0,
+                      width: '100%',
+                      height: '100%',
+                      cursor: 'pointer',
+                      zIndex: 2
+                    }}
+                  />
+                  <div style={{
+                    border: file ? '2px solid #10b981' : '2px dashed #cbd5e1',
+                    borderRadius: '8px',
+                    padding: file ? '10px' : '12px 10px',
+                    textAlign: 'center',
+                    backgroundColor: file ? '#f0fdf4' : 'white',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                    minHeight: '60px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!file) {
+                      e.target.style.borderColor = '#667eea';
+                      e.target.style.backgroundColor = '#fafbff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!file) {
+                      e.target.style.borderColor = '#cbd5e1';
+                      e.target.style.backgroundColor = 'white';
+                    }
+                  }}>
+                    <div style={{
+                      fontSize: file ? '24px' : '36px',
+                      marginBottom: file ? '4px' : '8px',
+                      color: file ? '#10b981' : '#667eea',
+                      filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                    }}>
+                      {file ? '✅' : '☁️'}
+                    </div>
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: file ? '#166534' : '#374151',
+                      marginBottom: '2px'
+                    }}>
+                      {file ? file.name : 'Drag & drop or click to upload'}
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      color: file ? '#10b981' : '#6b7280',
+                      fontWeight: '500'
+                    }}>
+                      {file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'PDF, JPG, PNG, GIF • Max 10MB'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Compact Action Button */}
+              <button
+                type="submit"
+                disabled={loading || !file || !documentType}
+                style={{
+                  width: '100%',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: loading || !file || !documentType 
+                    ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
+                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: loading || !file || !documentType 
+                    ? 'none' 
+                    : '0 6px 20px rgba(102, 126, 234, 0.3)',
+                  transform: loading || !file || !documentType ? 'none' : 'translateY(-1px)',
+                  letterSpacing: '-0.3px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && file && documentType) {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 8px 28px rgba(102, 126, 234, 0.4)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading && file && documentType) {
+                    e.target.style.transform = 'translateY(-1px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.3)';
+                  }
+                }}
+              >
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTop: '2px solid white',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    <span style={{ fontSize: '14px' }}>Processing...</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>🚀</span>
+                    <span style={{ fontSize: '14px' }}>Upload & Verify</span>
+                  </div>
+                )}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* Verification Progress - Compact Premium Design */
+          <div style={{
+            background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+            borderRadius: '16px',
+            boxShadow: '0 15px 30px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(0, 0, 0, 0.04)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            position: 'relative'
+          }}>
+            {/* Compact Success Header */}
             <div style={{
-              width: '100%',
-              height: '8px',
-              backgroundColor: '#374151',
-              borderRadius: '4px',
-              overflow: 'hidden'
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              padding: '14px 16px',
+              textAlign: 'center',
+              color: 'white',
+              position: 'relative',
+              borderRadius: '16px 16px 0 0'
             }}>
               <div style={{
-                width: `${verificationProgress}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #10b981, #34d399)',
-                borderRadius: '4px',
-                transition: 'width 0.5s ease'
-              }} />
+                fontSize: '24px',
+                marginBottom: '4px',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                animation: 'bounce 2s ease-in-out infinite'
+              }}>🎉</div>
+              <h2 style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: '600',
+                letterSpacing: '-0.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>Upload Successful!</h2>
+              <p style={{
+                margin: '2px 0 0 0',
+                fontSize: '12px',
+                opacity: 0.9,
+                fontWeight: '400'
+              }}>AI verification in progress...</p>
             </div>
-          </div>
 
-          {/* Current Step */}
-          <div style={{ 
-            textAlign: 'center', 
-            marginBottom: '25px',
-            padding: '15px',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}>
-            <div style={{ marginBottom: '10px' }}>
-              {verificationProgress < 100 ? (
-                <span className="loading-spinner" style={{
-                  display: 'inline-block',
-                  width: '20px',
-                  height: '20px',
-                  border: '2px solid #374151',
-                  borderTop: '2px solid #10b981',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-              ) : (
-                <span style={{ fontSize: '20px' }}>🎉</span>
-              )}
-            </div>
-            <p style={{ color: '#e5e7eb', fontSize: '0.95rem', margin: 0, fontWeight: 'bold' }}>
-              {currentStep || 'Initializing verification...'}
-            </p>
-          </div>
-
-          {/* Verification Steps */}
-          <div style={{ marginBottom: '25px' }}>
-            <h3 style={{ color: '#e5e7eb', fontSize: '1.1rem', marginBottom: '15px', textAlign: 'center' }}>
-              Verification Process
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-              {[
-                { step: '1', title: 'Document Analysis', icon: '🔍', done: verificationProgress >= 40 },
-                { step: '2', title: 'AI OCR Processing', icon: '🤖', done: verificationProgress >= 60 },
-                { step: '3', title: 'Authenticity Check', icon: '🛡️', done: verificationProgress >= 80 },
-                { step: '4', title: 'Report Generation', icon: '📊', done: verificationProgress >= 100 }
-              ].map((item) => (
-                <div key={item.step} style={{
-                  padding: '12px',
-                  backgroundColor: item.done ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: '8px',
-                  border: `1px solid ${item.done ? '#10b981' : 'rgba(255, 255, 255, 0.2)'}`,
-                  textAlign: 'center',
-                  transition: 'all 0.3s ease'
+            <div style={{ padding: '14px' }}>
+              {/* Compact Progress Bar */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                borderRadius: '12px',
+                padding: '12px',
+                marginBottom: '12px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.03)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '8px'
                 }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '5px' }}>
-                    {item.done ? '✅' : item.icon}
-                  </div>
-                  <p style={{ 
-                    color: item.done ? '#10b981' : '#e5e7eb', 
-                    fontSize: '0.8rem', 
-                    margin: 0,
-                    fontWeight: item.done ? 'bold' : 'normal'
-                  }}>
-                    {item.title}
-                  </p>
+                  <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>
+                    🔄 Verification Progress
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#10b981', fontWeight: '700' }}>
+                    {verificationProgress}%
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div style={{
+                  width: '100%',
+                  height: '8px',
+                  backgroundColor: '#e5e7eb',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)'
+                }}>
+                  <div style={{
+                    width: `${verificationProgress}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #10b981, #34d399)',
+                    borderRadius: '4px',
+                    transition: 'width 0.5s ease',
+                    boxShadow: '0 1px 4px rgba(16, 185, 129, 0.3)'
+                  }}></div>
+                </div>
+              </div>
 
-          {/* Document Info */}
-          {file && (
-            <div style={{ 
-              marginBottom: '25px',
-              padding: '15px',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              borderRadius: '8px',
-              border: '1px solid rgba(59, 130, 246, 0.2)'
-            }}>
-              <h4 style={{ color: '#60a5fa', fontSize: '0.9rem', marginBottom: '10px', margin: 0 }}>
-                📄 Document Information
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '10px' }}>
-                <div>
-                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>File Name:</span>
-                  <p style={{ color: '#e5e7eb', fontSize: '0.85rem', margin: '2px 0' }}>{file.name}</p>
-                </div>
-                <div>
-                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Document Type:</span>
-                  <p style={{ color: '#e5e7eb', fontSize: '0.85rem', margin: '2px 0' }}>
-                    {documentType.replace(/-/g, ' ').toUpperCase()}
-                  </p>
-                </div>
-                <div>
-                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>File Size:</span>
-                  <p style={{ color: '#e5e7eb', fontSize: '0.85rem', margin: '2px 0' }}>
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <div>
-                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Status:</span>
-                  <p style={{ color: '#10b981', fontSize: '0.85rem', margin: '2px 0', fontWeight: 'bold' }}>
-                    {verificationProgress < 100 ? 'Processing...' : 'Verified ✅'}
+              {/* Compact Current Step Display */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                borderRadius: '12px',
+                padding: '10px',
+                marginBottom: '12px',
+                textAlign: 'center',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.03)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}>
+                  {verificationProgress < 100 ? (
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #e5e7eb',
+                      borderTop: '2px solid #667eea',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                  ) : (
+                    <span style={{ fontSize: '16px' }}>✨</span>
+                  )}
+                  <p style={{
+                    margin: 0,
+                    fontSize: '13px',
+                    color: '#374151',
+                    fontWeight: '600'
+                  }}>
+                    {currentStep || 'Initializing verification...'}
                   </p>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Action Buttons */}
-          {verificationProgress >= 100 && (
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => navigate('/dashboard', { state: { fromUpload: true } })}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.3s ease',
-                  minWidth: '150px'
-                }}
-                onMouseOver={(e) => e.target.style.backgroundColor = '#059669'}
-                onMouseOut={(e) => e.target.style.backgroundColor = '#10b981'}
-              >
-                📊 View Dashboard
-              </button>
-              <button
-                onClick={resetForm}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  color: '#e5e7eb',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.3s ease',
-                  minWidth: '150px'
-                }}
-                onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
-                onMouseOut={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-              >
-                📤 Upload Another
-              </button>
+              {/* Compact Verification Steps Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '6px',
+                marginBottom: '12px'
+              }}>
+                {[
+                  { name: 'Scan', icon: '🔍', done: verificationProgress >= 40 },
+                  { name: 'Extract', icon: '📝', done: verificationProgress >= 60 },
+                  { name: 'Verify', icon: '🛡️', done: verificationProgress >= 80 },
+                  { name: 'Report', icon: '📊', done: verificationProgress >= 100 }
+                ].map((step, idx) => (
+                  <div key={idx} style={{
+                    padding: '8px 6px',
+                    backgroundColor: step.done ? '#f0fdf4' : '#f9fafb',
+                    border: step.done ? '2px solid #bbf7d0' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
+                    textAlign: 'center',
+                    transition: 'all 0.3s ease',
+                    boxShadow: step.done ? '0 1px 4px rgba(16, 185, 129, 0.1)' : '0 1px 2px rgba(0, 0, 0, 0.02)'
+                  }}>
+                    <div style={{
+                      fontSize: '14px',
+                      marginBottom: '2px'
+                    }}>
+                      {step.done ? '✅' : step.icon}
+                    </div>
+                    <div style={{
+                      fontSize: '9px',
+                      fontWeight: '600',
+                      color: step.done ? '#166534' : '#6b7280'
+                    }}>
+                      {step.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Compact Document Status Card */}
+              {file && (
+                <div style={{
+                  backgroundColor: '#eff6ff',
+                  border: '2px solid #bfdbfe',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  marginBottom: '14px',
+                  boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '12px'
+                  }}>
+                    <div>
+                      <div style={{
+                        fontWeight: '600',
+                        color: '#1e40af',
+                        marginBottom: '2px',
+                        fontSize: '13px'
+                      }}>
+                        📄 {file.name}
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                        Size: {(file.size / 1024 / 1024).toFixed(1)} MB
+                      </div>
+                    </div>
+                    <div style={{
+                      color: verificationProgress < 100 ? '#f59e0b' : '#10b981',
+                      fontWeight: '600',
+                      fontSize: '11px',
+                      padding: '3px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: verificationProgress < 100 ? '#fef3c7' : '#d1fae5'
+                    }}>
+                      {verificationProgress < 100 ? '🔄 Processing' : '✅ Verified'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Compact Action Buttons */}
+              {verificationProgress >= 100 && (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => navigate('/dashboard', { state: { fromUpload: true } })}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 3px 8px rgba(102, 126, 234, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-1px)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 3px 8px rgba(102, 126, 234, 0.3)';
+                    }}
+                  >
+                    📊 View Dashboard
+                  </button>
+                  <button
+                    onClick={resetForm}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      borderRadius: '10px',
+                      border: '2px solid #e2e8f0',
+                      background: 'white',
+                      color: '#374151',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#f9fafb';
+                      e.target.style.transform = 'translateY(-1px)';
+                      e.target.style.boxShadow = '0 3px 8px rgba(0, 0, 0, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'white';
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.04)';
+                    }}
+                  >
+                    📤 Upload Another
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
-      
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Animations CSS */}
       <style jsx>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-        
-        .success-icon {
-          animation: bounce 1s ease-in-out infinite;
-        }
-        
         @keyframes bounce {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.1); }
         }
-        
-        .loading-spinner {
-          animation: spin 1s linear infinite;
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
         }
       `}</style>
     </div>
