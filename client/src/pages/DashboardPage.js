@@ -16,6 +16,10 @@ const Dashboard = () => {
   });
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showAllDocuments, setShowAllDocuments] = useState(false);
+  const [documentFilter, setDocumentFilter] = useState('all'); // all, verified, pending, failed
+  const [documentSort, setDocumentSort] = useState('newest'); // newest, oldest, name
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
@@ -155,6 +159,44 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  // Filter and sort documents
+  const getFilteredAndSortedDocuments = () => {
+    let filteredDocs = [...documents];
+    
+    // Apply filter
+    if (documentFilter !== 'all') {
+      filteredDocs = filteredDocs.filter(doc => {
+        switch (documentFilter) {
+          case 'verified':
+            return doc.status === 'verified';
+          case 'pending':
+            return doc.status === 'processing' || doc.status === 'needs_review';
+          case 'failed':
+            return doc.status === 'rejected' || doc.status === 'failed';
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Apply sorting
+    filteredDocs.sort((a, b) => {
+      switch (documentSort) {
+        case 'oldest':
+          return new Date(a.createdAt || a.uploadedAt) - new Date(b.createdAt || b.uploadedAt);
+        case 'name':
+          return (a.originalName || a.fileName || '').localeCompare(b.originalName || b.fileName || '');
+        case 'newest':
+        default:
+          return new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt);
+      }
+    });
+    
+    return filteredDocs;
+  };
+
+  const filteredDocuments = getFilteredAndSortedDocuments();
+
   const DocumentCard = ({ document }) => {
     const getStatusColor = (status) => {
       switch (status) {
@@ -178,29 +220,33 @@ const Dashboard = () => {
     const formatFileSize = (bytes) => {
       if (!bytes) return 'Unknown';
       const mb = bytes / 1024 / 1024;
-      return `${mb.toFixed(2)} MB`;
+      return `${mb.toFixed(1)} MB`;
     };
 
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-all duration-200">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <span className="text-lg">{getStatusIcon(document.status)}</span>
-            <div>
-              <h3 className="font-semibold text-white text-sm truncate max-w-32">
+      <div className="bg-white/8 backdrop-blur-sm rounded-xl p-3 border border-white/10 hover:bg-white/12 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <span className="text-base flex-shrink-0">{getStatusIcon(document.status)}</span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-white text-xs truncate">
                 {document.originalName || document.fileName || 'Document'}
               </h3>
-              <p className="text-xs text-gray-400">
-                {document.documentType?.replace('-', ' ').toUpperCase() || 'Unknown Type'}
+              <p className="text-xs text-gray-400 truncate">
+                {document.documentType?.replace('-', ' ').toUpperCase() || 'Unknown'}
               </p>
             </div>
           </div>
-          <span className={`text-xs font-bold uppercase ${getStatusColor(document.status)}`}>
+          <span className={`text-xs font-medium px-2 py-1 rounded-full bg-opacity-20 ${getStatusColor(document.status)} ${
+            document.status === 'verified' ? 'bg-green-500' : 
+            document.status === 'processing' ? 'bg-yellow-500' : 
+            'bg-red-500'
+          }`}>
             {document.status}
           </span>
         </div>
 
-        <div className="space-y-2 mb-4">
+        <div className="space-y-1 mb-3">
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-400">Confidence:</span>
             <span className="text-xs font-medium text-white">
@@ -208,9 +254,12 @@ const Dashboard = () => {
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-400">Uploaded:</span>
+            <span className="text-xs text-gray-400">Date:</span>
             <span className="text-xs text-white">
-              {new Date(document.createdAt || document.uploadedAt).toLocaleDateString()}
+              {new Date(document.createdAt || document.uploadedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
             </span>
           </div>
           {document.fileSize && (
@@ -222,10 +271,10 @@ const Dashboard = () => {
         </div>
 
         {document.status === 'processing' && (
-          <div className="mb-4">
-            <div className="w-full bg-gray-700 rounded-full h-1.5">
+          <div className="mb-3">
+            <div className="w-full bg-gray-700 rounded-full h-1">
               <div 
-                className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                className="bg-blue-500 h-1 rounded-full transition-all duration-500"
                 style={{ width: `${document.progress || 50}%` }}
               ></div>
             </div>
@@ -236,13 +285,13 @@ const Dashboard = () => {
         <div className="flex space-x-2">
           <button
             onClick={() => handleViewDetails(document)}
-            className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs py-2 px-3 rounded border border-blue-600/30 transition-colors duration-200"
+            className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs py-2 px-3 rounded-lg border border-blue-500/30 transition-all duration-200 hover:border-blue-500/50"
           >
-            View Details
+            View
           </button>
           <button
             onClick={handleUploadClick}
-            className="bg-green-600/20 hover:bg-green-600/30 text-green-400 text-xs py-2 px-3 rounded border border-green-600/30 transition-colors duration-200"
+            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs py-2 px-3 rounded-lg border border-green-500/30 transition-all duration-200 hover:border-green-500/50"
           >
             📤
           </button>
@@ -279,184 +328,344 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header with Upload Button */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Welcome back, {getUserName()}! 👋
-            </h1>
-            <p className="text-gray-300">
-              Manage and verify your documents using AI
-            </p>
-          </div>
-          
-          {/* Upload Document Button - Always Visible */}
-          <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Mobile-First Header */}
+      <div className="bg-black/20 backdrop-blur-sm border-b border-white/10 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">📄</span>
+              </div>
+              <div>
+                <h1 className="text-white font-semibold text-sm">
+                  Hello, {getUserName()}!
+                </h1>
+                <p className="text-gray-400 text-xs hidden sm:block">
+                  Document Verification Dashboard
+                </p>
+              </div>
+            </div>
+            
+            {/* Mobile Menu Button */}
             <button
-              onClick={handleUploadClick}
-              className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden bg-white/10 p-2 rounded-lg text-white"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-              <span>📄 Upload Document</span>
             </button>
             
-            <button
-              onClick={refreshDocuments}
-              className="bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-lg border border-white/20 transition-all duration-200 flex items-center space-x-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span>🔄 Refresh</span>
-            </button>
+            {/* Desktop Action Buttons */}
+            <div className="hidden md:flex items-center space-x-2">
+              <button
+                onClick={handleUploadClick}
+                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 text-sm flex items-center space-x-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <span>Upload</span>
+              </button>
+              
+              <button
+                onClick={refreshDocuments}
+                className="bg-white/10 hover:bg-white/20 text-white font-medium py-2 px-4 rounded-lg border border-white/20 transition-all duration-200 text-sm"
+              >
+                🔄
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                className="bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium py-2 px-4 rounded-lg border border-red-500/30 transition-all duration-200 text-sm"
+              >
+                🚪
+              </button>
+            </div>
+          </div>
+          
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden bg-black/40 backdrop-blur-sm border-t border-white/10 py-3">
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => {
+                    handleUploadClick();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium py-2 px-4 rounded-lg text-sm flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span>Upload Document</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    refreshDocuments();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="bg-white/10 text-white font-medium py-2 px-4 rounded-lg text-sm flex items-center space-x-2"
+                >
+                  <span>🔄</span>
+                  <span>Refresh Documents</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="bg-red-500/20 text-red-400 font-medium py-2 px-4 rounded-lg text-sm flex items-center space-x-2"
+                >
+                  <span>🚪</span>
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
-            <button
-              onClick={handleLogout}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span>🚪 Logout</span>
-            </button>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
+        {/* Compact Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-xs font-medium">Total</p>
+                <p className="text-xl font-bold text-white">{stats.total}</p>
+              </div>
+              <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-sm">📊</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-xs font-medium">Verified</p>
+                <p className="text-xl font-bold text-green-400">{stats.verified}</p>
+              </div>
+              <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-sm">✅</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-xs font-medium">Pending</p>
+                <p className="text-xl font-bold text-yellow-400">{stats.pending}</p>
+              </div>
+              <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-sm">⏳</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-xs font-medium">Failed</p>
+                <p className="text-xl font-bold text-red-400">{stats.failed}</p>
+              </div>
+              <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
+                <span className="text-sm">❌</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm font-medium">Total Documents</p>
-                <p className="text-3xl font-bold text-white">{stats.total}</p>
+        {/* Documents Section */}
+        <div className="bg-white/8 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden">
+          <div className="p-4 border-b border-white/10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center space-x-3">
+                <h2 className="text-lg font-semibold text-white">
+                  {showAllDocuments ? 'All Documents' : 'Recent Documents'}
+                </h2>
+                <span className="text-xs text-gray-400">
+                  {filteredDocuments.length} of {documents.length} document{documents.length !== 1 ? 's' : ''}
+                </span>
               </div>
-              <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+              
+              <div className="flex items-center space-x-2">
+                {/* Filter Dropdown */}
+                {showAllDocuments && (
+                  <>
+                    <select
+                      value={documentFilter}
+                      onChange={(e) => setDocumentFilter(e.target.value)}
+                      className="bg-white/10 text-white text-xs py-1 px-2 rounded border border-white/20 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="all" className="bg-gray-800">All Status</option>
+                      <option value="verified" className="bg-gray-800">✅ Verified</option>
+                      <option value="pending" className="bg-gray-800">⏳ Pending</option>
+                      <option value="failed" className="bg-gray-800">❌ Failed</option>
+                    </select>
+                    
+                    <select
+                      value={documentSort}
+                      onChange={(e) => setDocumentSort(e.target.value)}
+                      className="bg-white/10 text-white text-xs py-1 px-2 rounded border border-white/20 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="newest" className="bg-gray-800">📅 Newest</option>
+                      <option value="oldest" className="bg-gray-800">📅 Oldest</option>
+                      <option value="name" className="bg-gray-800">🔤 Name</option>
+                    </select>
+                  </>
+                )}
+                
+                {documents.length > 8 && (
+                  <button
+                    onClick={() => {
+                      setShowAllDocuments(!showAllDocuments);
+                      if (!showAllDocuments) {
+                        setDocumentFilter('all');
+                        setDocumentSort('newest');
+                      }
+                    }}
+                    className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs py-1 px-3 rounded-lg border border-blue-500/30 transition-all duration-200 hover:border-blue-500/50"
+                  >
+                    {showAllDocuments ? '📋 Show Recent' : '📄 View All'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm font-medium">Verified</p>
-                <p className="text-3xl font-bold text-green-400">{stats.verified}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">✅</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm font-medium">Pending</p>
-                <p className="text-3xl font-bold text-yellow-400">{stats.pending}</p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">⏳</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm font-medium">Failed</p>
-                <p className="text-3xl font-bold text-red-400">{stats.failed}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">❌</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Documents Section */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden">
-          <div className="p-6 border-b border-white/10">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold text-white">Recent Documents</h2>
-              <span className="text-sm text-gray-400">
-                {documents.length} document{documents.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-6">
+          <div className="p-4">
             {documents.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-24 h-24 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-4xl">📄</span>
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📄</span>
                 </div>
-                <h3 className="text-xl font-medium text-gray-300 mb-2">No documents yet</h3>
-                <p className="text-gray-400 mb-6">Upload your first document to get started with AI verification</p>
+                <h3 className="text-lg font-medium text-gray-300 mb-2">No documents yet</h3>
+                <p className="text-gray-400 text-sm mb-4">Upload your first document to get started</p>
                 <button
                   onClick={handleUploadClick}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-6 rounded-lg transform hover:scale-105 transition-all duration-200"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 text-sm"
                 >
-                  🚀 Upload Your First Document
+                  🚀 Upload Document
+                </button>
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🔍</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-300 mb-2">No documents match filter</h3>
+                <p className="text-gray-400 text-sm mb-4">Try changing your filter criteria</p>
+                <button
+                  onClick={() => setDocumentFilter('all')}
+                  className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs py-2 px-4 rounded-lg border border-blue-500/30 transition-all duration-200"
+                >
+                  Reset Filter
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {documents.slice(0, 6).map((document) => (
-                  <DocumentCard 
-                    key={document.id || document.fileName} 
-                    document={document}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {(showAllDocuments ? filteredDocuments : filteredDocuments.slice(0, 8)).map((document) => (
+                    <DocumentCard 
+                      key={document.id || document.fileName} 
+                      document={document}
+                    />
+                  ))}
+                </div>
+                
+                {/* Show pagination info for all documents view */}
+                {showAllDocuments && filteredDocuments.length > 8 && (
+                  <div className="mt-6 text-center">
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <p className="text-xs text-gray-400">
+                        Showing all {filteredDocuments.length} documents
+                        {documentFilter !== 'all' && ` (${documentFilter})`}
+                        {documentSort !== 'newest' && ` sorted by ${documentSort}`}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowAllDocuments(false);
+                          setDocumentFilter('all');
+                          setDocumentSort('newest');
+                        }}
+                        className="mt-2 text-blue-400 hover:text-blue-300 text-xs underline"
+                      >
+                        ← Back to Recent
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show "View All" hint when showing recent */}
+                {!showAllDocuments && documents.length > 8 && (
+                  <div className="mt-6 text-center">
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <p className="text-xs text-gray-400 mb-2">
+                        Showing {Math.min(8, filteredDocuments.length)} of {documents.length} documents
+                      </p>
+                      <button
+                        onClick={() => setShowAllDocuments(true)}
+                        className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-blue-400 text-xs py-2 px-4 rounded-lg border border-blue-500/30 transition-all duration-200 flex items-center space-x-2 mx-auto"
+                      >
+                        <span>📄</span>
+                        <span>View All {documents.length} Documents</span>
+                        <span>→</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {/* Quick Upload Options */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center">
-            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🆔</span>
+        {/* Quick Actions - Mobile Optimized */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
+            <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-xl">🆔</span>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Identity Documents</h3>
-            <p className="text-gray-300 text-sm mb-4">Upload passport, ID card, or driver's license</p>
+            <h3 className="text-sm font-semibold text-white mb-2">ID Documents</h3>
+            <p className="text-gray-300 text-xs mb-3">Passport, ID card, license</p>
             <button
               onClick={handleUploadClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
+              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-2 rounded-lg text-xs border border-blue-500/30 transition-all duration-200"
             >
               Upload ID
             </button>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">📋</span>
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
+            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-xl">📋</span>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Certificates</h3>
-            <p className="text-gray-300 text-sm mb-4">Academic, professional, or medical certificates</p>
+            <h3 className="text-sm font-semibold text-white mb-2">Certificates</h3>
+            <p className="text-gray-300 text-xs mb-3">Academic, professional docs</p>
             <button
               onClick={handleUploadClick}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-2 rounded-lg text-xs border border-green-500/30 transition-all duration-200"
             >
-              Upload Certificate
+              Upload Cert
             </button>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center">
-            <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">📄</span>
+          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center sm:col-span-2 lg:col-span-1">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-xl">📄</span>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Other Documents</h3>
-            <p className="text-gray-300 text-sm mb-4">Bank statements, utility bills, and more</p>
+            <h3 className="text-sm font-semibold text-white mb-2">Other Documents</h3>
+            <p className="text-gray-300 text-xs mb-3">Bank statements, bills</p>
             <button
               onClick={handleUploadClick}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm"
+              className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-2 rounded-lg text-xs border border-purple-500/30 transition-all duration-200"
             >
-              Upload Document
+              Upload Doc
             </button>
           </div>
         </div>

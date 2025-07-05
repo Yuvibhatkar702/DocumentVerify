@@ -36,27 +36,33 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700"
+        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700"
       >
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-3">
-            <span className="text-4xl">{getDocumentIcon(document.documentType)}</span>
+            <span className="text-2xl">{getDocumentIcon(document.documentType)}</span>
             <div>
-              <h2 className="text-2xl font-bold text-white">{document.originalName || document.fileName}</h2>
-              <p className="text-gray-400 capitalize">{document.documentType?.replace('-', ' ') || 'Unknown Type'}</p>
+              <h2 className="text-lg font-semibold text-white truncate">
+                {document.originalName || document.fileName}
+              </h2>
+              <p className="text-sm text-gray-400">
+                {document.documentType?.replace('-', ' ').toUpperCase()}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl p-2 hover:bg-gray-700 rounded-lg transition"
+            className="text-gray-400 hover:text-white transition-colors p-1"
           >
-            ×
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
