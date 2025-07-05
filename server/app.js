@@ -60,7 +60,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Serve client build files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  // Check if build directory exists
+  const buildPath = path.join(__dirname, '../client/build');
+  console.log('Build path:', buildPath);
+  
+  app.use(express.static(buildPath));
 }
 
 // API routes
@@ -92,7 +96,16 @@ app.use(errorHandler);
 // Serve React app for any other routes in production (must be last)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build/index.html'));
+    const indexPath = path.join(__dirname, '../client/build/index.html');
+    console.log('Serving React app for route:', req.path);
+    console.log('Index path:', indexPath);
+    
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error('Error serving React app:', err);
+        res.status(500).send('Error loading the application');
+      }
+    });
   });
 } else {
   // 404 handler for development

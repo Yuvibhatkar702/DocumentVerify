@@ -8,5 +8,15 @@
   restartPolicyType = "ON_FAILURE"
   restartPolicyMaxRetries = 10
 
+[build.nixpacks]
+  buildCommand = "npm run railway:build"
+
 [environments.production.variables]
   NODE_ENV = "production"
+  CORS_ORIGIN = "https://web-production-11172.up.railway.app"
+  JWT_SECRET = "DocumentVerify2025SuperSecretKeyForJWTTokensProductionEnvironment"
+  MONGODB_URI = "mongodb+srv://yuvibhatkar702:Yuvi123@dvs.wfn30nz.mongodb.net/documentverify?retryWrites=true&w=majority"
+  MAX_FILE_SIZE = "10485760"
+  UPLOAD_PATH = "./uploads"
+  RATE_LIMIT_WINDOW_MS = "900000"
+  RATE_LIMIT_MAX_REQUESTS = "100"
