@@ -2,7 +2,9 @@ import React, { useState, useEffect, useContext } from 'react';
 import { getDocuments } from '../services/documentService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import { useCategory } from '../contexts/CategoryContext';
 import DocumentDetailsModal from '../components/DocumentDetailsModal';
+import UserTypeSwitcher from '../components/UserTypeSwitcher';
 
 const Dashboard = () => {
   const [documents, setDocuments] = useState([]);
@@ -23,6 +25,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
+  const { selectCategory, clearCategory, categories } = useCategory();
 
   useEffect(() => {
     fetchDocuments();
@@ -133,7 +136,12 @@ const Dashboard = () => {
     }
   };
 
-  const handleUploadClick = () => {
+  const handleUploadClick = (categoryId = null) => {
+    if (categoryId) {
+      selectCategory(categoryId);
+    } else {
+      clearCategory();
+    }
     navigate('/upload');
   };
 
@@ -360,16 +368,6 @@ const Dashboard = () => {
             {/* Desktop Action Buttons */}
             <div className="hidden md:flex items-center space-x-2">
               <button
-                onClick={handleUploadClick}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 text-sm flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <span>Upload</span>
-              </button>
-              
-              <button
                 onClick={refreshDocuments}
                 className="bg-white/10 hover:bg-white/20 text-white font-medium py-2 px-4 rounded-lg border border-white/20 transition-all duration-200 text-sm"
               >
@@ -389,19 +387,6 @@ const Dashboard = () => {
           {isMobileMenuOpen && (
             <div className="md:hidden bg-black/40 backdrop-blur-sm border-t border-white/10 py-3">
               <div className="flex flex-col space-y-2">
-                <button
-                  onClick={() => {
-                    handleUploadClick();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium py-2 px-4 rounded-lg text-sm flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span>Upload Document</span>
-                </button>
-                
                 <button
                   onClick={() => {
                     refreshDocuments();
@@ -430,6 +415,9 @@ const Dashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
+        {/* User Type Switcher - for testing different user types */}
+        <UserTypeSwitcher />
+        
         {/* Compact Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10">
@@ -627,47 +615,86 @@ const Dashboard = () => {
 
         {/* Quick Actions - Mobile Optimized */}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
-            <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-xl">🆔</span>
-            </div>
-            <h3 className="text-sm font-semibold text-white mb-2">ID Documents</h3>
-            <p className="text-gray-300 text-xs mb-3">Passport, ID card, license</p>
-            <button
-              onClick={handleUploadClick}
-              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-2 rounded-lg text-xs border border-blue-500/30 transition-all duration-200"
-            >
-              Upload ID
-            </button>
-          </div>
-
-          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
-            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-xl">📋</span>
-            </div>
-            <h3 className="text-sm font-semibold text-white mb-2">Certificates</h3>
-            <p className="text-gray-300 text-xs mb-3">Academic, professional docs</p>
-            <button
-              onClick={handleUploadClick}
-              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-2 rounded-lg text-xs border border-green-500/30 transition-all duration-200"
-            >
-              Upload Cert
-            </button>
-          </div>
-
-          <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center sm:col-span-2 lg:col-span-1">
-            <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-xl">📄</span>
-            </div>
-            <h3 className="text-sm font-semibold text-white mb-2">Other Documents</h3>
-            <p className="text-gray-300 text-xs mb-3">Bank statements, bills</p>
-            <button
-              onClick={handleUploadClick}
-              className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-2 rounded-lg text-xs border border-purple-500/30 transition-all duration-200"
-            >
-              Upload Doc
-            </button>
-          </div>
+          {Object.entries(categories).map(([categoryId, category]) => {
+            const colorClasses = {
+              blue: {
+                bg: 'bg-blue-500/20',
+                hover: 'hover:bg-blue-500/30',
+                text: 'text-blue-400',
+                border: 'border-blue-500/30'
+              },
+              green: {
+                bg: 'bg-green-500/20',
+                hover: 'hover:bg-green-500/30',
+                text: 'text-green-400',
+                border: 'border-green-500/30'
+              },
+              purple: {
+                bg: 'bg-purple-500/20',
+                hover: 'hover:bg-purple-500/30',
+                text: 'text-purple-400',
+                border: 'border-purple-500/30'
+              },
+              yellow: {
+                bg: 'bg-yellow-500/20',
+                hover: 'hover:bg-yellow-500/30',
+                text: 'text-yellow-400',
+                border: 'border-yellow-500/30'
+              },
+              indigo: {
+                bg: 'bg-indigo-500/20',
+                hover: 'hover:bg-indigo-500/30',
+                text: 'text-indigo-400',
+                border: 'border-indigo-500/30'
+              },
+              teal: {
+                bg: 'bg-teal-500/20',
+                hover: 'hover:bg-teal-500/30',
+                text: 'text-teal-400',
+                border: 'border-teal-500/30'
+              },
+              orange: {
+                bg: 'bg-orange-500/20',
+                hover: 'hover:bg-orange-500/30',
+                text: 'text-orange-400',
+                border: 'border-orange-500/30'
+              }
+            };
+            
+            const colors = colorClasses[category.color] || colorClasses.blue; // fallback to blue
+            
+            // Get appropriate button text
+            const getButtonText = (categoryName) => {
+              switch(categoryName) {
+                case 'ID Documents': return 'Upload ID';
+                case 'Certificates': return 'Upload Cert';
+                case 'School Certificates': return 'Upload School';
+                case 'College Transcripts': return 'Upload College';
+                case 'Internship Letters': return 'Upload Internship';
+                case 'Employment Documents': return 'Upload Employment';
+                default: return 'Upload Doc';
+              }
+            };
+            
+            return (
+              <div 
+                key={categoryId}
+                className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center"
+              >
+                <div className={`w-12 h-12 ${colors.bg} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                  <span className="text-xl">{category.icon}</span>
+                </div>
+                <h3 className="text-sm font-semibold text-white mb-2">{category.name}</h3>
+                <p className="text-gray-300 text-xs mb-3">{category.description}</p>
+                <button
+                  onClick={() => handleUploadClick(categoryId)}
+                  className={`${colors.bg} ${colors.hover} ${colors.text} px-3 py-2 rounded-lg text-xs border ${colors.border} transition-all duration-200`}
+                >
+                  {getButtonText(category.name)}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Document Details Modal */}

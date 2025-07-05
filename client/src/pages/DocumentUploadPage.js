@@ -3,9 +3,13 @@
 import React from 'react';
 import UploadForm from '../components/UploadForm';
 import { uploadDocument } from '../services/documentService';
+import { useCategory } from '../contexts/CategoryContext';
 import { motion } from 'framer-motion';
 
 const DocumentUploadPage = () => {
+  const { selectedCategory, getCategoryInfo } = useCategory();
+  const categoryInfo = selectedCategory ? getCategoryInfo(selectedCategory) : null;
+  
   const handleUpload = async (formData) => {
     try {
       const response = await uploadDocument(formData);
@@ -28,10 +32,21 @@ const DocumentUploadPage = () => {
         className="relative w-full max-w-2xl p-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl z-10 text-white"
       >
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold mb-2">🔒 Secure Document Upload</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            🔒 {categoryInfo ? `Upload ${categoryInfo.name}` : 'Secure Document Upload'}
+          </h1>
           <p className="text-gray-300 text-sm">
-            Upload your documents for AI-powered verification and analysis
+            {categoryInfo 
+              ? `Upload your ${categoryInfo.description.toLowerCase()} for AI-powered verification`
+              : 'Upload your documents for AI-powered verification and analysis'
+            }
           </p>
+          {categoryInfo && (
+            <div className="mt-3 inline-flex items-center px-3 py-1 rounded-full bg-white/10 border border-white/20">
+              <span className="text-lg mr-2">{categoryInfo.icon}</span>
+              <span className="text-sm text-gray-300">Category: {categoryInfo.name}</span>
+            </div>
+          )}
         </div>
 
         {/* Security Features */}

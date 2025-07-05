@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { uploadDocument } from '../services/documentService';
 import { useNavigate } from 'react-router-dom';
+import { useCategory } from '../contexts/CategoryContext';
+import CategorySelector from './CategorySelector';
 
 const UploadForm = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
@@ -11,6 +13,24 @@ const UploadForm = ({ onUploadSuccess }) => {
   const [currentStep, setCurrentStep] = useState('');
   const [validationError, setValidationError] = useState('');
   const navigate = useNavigate();
+  const { selectedCategory, allowedDocumentTypes, getDocumentTypeName, isDocumentTypeAllowed } = useCategory();
+
+  // Get available document types based on selected category
+  const getAvailableDocumentTypes = () => {
+    const allDocumentTypes = [
+      'aadhar-card', 'passport', 'id-card', 'driver-license', 'birth-certificate',
+      'marriage-certificate', 'academic-certificate', 'professional-certificate',
+      'visa', 'work-permit', 'residence-permit', 'social-security-card', 'voter-id',
+      'utility-bill', 'bank-statement', 'insurance-card', 'medical-certificate',
+      'tax-document', 'property-deed', 'other'
+    ];
+    
+    if (!selectedCategory) {
+      return allDocumentTypes; // If no category selected, show all types
+    }
+    
+    return allDocumentTypes.filter(type => isDocumentTypeAllowed(type));
+  };
 
   // Document validation function
   const validateDocumentType = (file, selectedType) => {
@@ -271,6 +291,13 @@ const UploadForm = ({ onUploadSuccess }) => {
 
   const handleDocumentTypeChange = (e) => {
     const selectedType = e.target.value;
+    
+    // Check if the selected document type is allowed for the current category
+    if (selectedCategory && !isDocumentTypeAllowed(selectedType)) {
+      setValidationError(`This document type is not allowed for the selected category. Please select a different document type.`);
+      return;
+    }
+    
     setDocumentType(selectedType);
     setValidationError(''); // Clear any previous validation errors
     
@@ -287,6 +314,13 @@ const UploadForm = ({ onUploadSuccess }) => {
     e.preventDefault();
     if (!file || !documentType) {
       alert('Please select a file and document type');
+      return;
+    }
+
+    // Validate category restriction
+    if (selectedCategory && !isDocumentTypeAllowed(documentType)) {
+      setValidationError(`This document type is not allowed for the selected category.`);
+      alert(`Document type validation failed: This document type is not allowed for the selected category.`);
       return;
     }
 
@@ -466,7 +500,11 @@ const UploadForm = ({ onUploadSuccess }) => {
   return (
     <div className="upload-form-container">
       {!uploadSuccess ? (
-        <form onSubmit={handleSubmit} className="upload-form">
+        <div>
+          {/* Category Selector */}
+          <CategorySelector />
+          
+          <form onSubmit={handleSubmit} className="upload-form">
           <div className="form-group">
             <label htmlFor="documentType">Document Type:</label>
             <select
@@ -476,27 +514,17 @@ const UploadForm = ({ onUploadSuccess }) => {
               required
               style={{ color: 'black' }}
             >
-              <option value="" style={{ color: 'black' }}>Select Document Type</option>
-              <option value="aadhar-card" style={{ color: 'black' }}>Aadhar Card</option>
-              <option value="passport" style={{ color: 'black' }}>Passport</option>
-              <option value="id-card" style={{ color: 'black' }}>National ID Card</option>
-              <option value="driver-license" style={{ color: 'black' }}>Driver's License</option>
-              <option value="birth-certificate" style={{ color: 'black' }}>Birth Certificate</option>
-              <option value="marriage-certificate" style={{ color: 'black' }}>Marriage Certificate</option>
-              <option value="academic-certificate" style={{ color: 'black' }}>Academic Certificate</option>
-              <option value="professional-certificate" style={{ color: 'black' }}>Professional Certificate</option>
-              <option value="visa" style={{ color: 'black' }}>Visa</option>
-              <option value="work-permit" style={{ color: 'black' }}>Work Permit</option>
-              <option value="residence-permit" style={{ color: 'black' }}>Residence Permit</option>
-              <option value="social-security-card" style={{ color: 'black' }}>Social Security Card</option>
-              <option value="voter-id" style={{ color: 'black' }}>Voter ID</option>
-              <option value="utility-bill" style={{ color: 'black' }}>Utility Bill</option>
-              <option value="bank-statement" style={{ color: 'black' }}>Bank Statement</option>
-              <option value="insurance-card" style={{ color: 'black' }}>Insurance Card</option>
-              <option value="medical-certificate" style={{ color: 'black' }}>Medical Certificate</option>
-              <option value="tax-document" style={{ color: 'black' }}>Tax Document</option>
-              <option value="property-deed" style={{ color: 'black' }}>Property Deed</option>
-              <option value="other" style={{ color: 'black' }}>Other Document</option>
+              <option value="" style={{ color: 'black' }}>
+                {selectedCategory 
+                  ? `Select ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Document Type`
+                  : 'Select Document Type'
+                }
+              </option>
+              {getAvailableDocumentTypes().map(type => (
+                <option key={type} value={type} style={{ color: 'black' }}>
+                  {getDocumentTypeName(type)}
+                </option>
+              ))}
             </select>
           </div>
           
@@ -681,6 +709,7 @@ const UploadForm = ({ onUploadSuccess }) => {
             )}
           </button>
         </form>
+        </div>
       ) : (
         <div className="verification-progress">
           {/* Success Header */}
