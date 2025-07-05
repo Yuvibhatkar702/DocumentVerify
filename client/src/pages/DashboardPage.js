@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { useCategory } from '../contexts/CategoryContext';
 import DocumentDetailsModal from '../components/DocumentDetailsModal';
-import UserTypeSwitcher from '../components/UserTypeSwitcher';
 
 const Dashboard = () => {
   const [documents, setDocuments] = useState([]);
@@ -415,9 +414,6 @@ const Dashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
-        {/* User Type Switcher - for testing different user types */}
-        <UserTypeSwitcher />
-        
         {/* Compact Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-white/8 backdrop-blur-sm rounded-xl p-4 border border-white/10">

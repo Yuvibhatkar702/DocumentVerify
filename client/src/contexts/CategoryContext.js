@@ -17,7 +17,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Documents to prove identity',
     icon: '🆔',
     color: 'blue',
-    userTypes: ['all', 'general'], // visible to all users
     documentTypes: [
       'aadhar-card',
       'pan-card',
@@ -40,7 +39,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Academic records and proofs',
     icon: '🎓',
     color: 'green',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'ssc-10th-marksheet',
       'hsc-12th-marksheet',
@@ -65,7 +63,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Documents issued by govt authorities',
     icon: '🏛️',
     color: 'indigo',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'caste-certificate',
       'income-certificate',
@@ -88,7 +85,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Income, banking, and financial data',
     icon: '💰',
     color: 'yellow',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'bank-passbook',
       'bank-statement',
@@ -110,7 +106,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Residential verification documents',
     icon: '🏠',
     color: 'purple',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'aadhar-card-address',
       'voter-id-address',
@@ -132,7 +127,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Work-related proofs',
     icon: '💼',
     color: 'orange',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'offer-letter',
       'appointment-letter',
@@ -154,7 +148,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Health, insurance, and treatment documents',
     icon: '🏥',
     color: 'red',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'medical-report',
       'covid-vaccination-certificate',
@@ -175,7 +168,6 @@ export const DOCUMENT_CATEGORIES = {
     description: '📄 Any miscellaneous or unclassified documents',
     icon: '📄',
     color: 'gray',
-    userTypes: ['all', 'general'],
     documentTypes: [
       'affidavit',
       'notarized-documents',
@@ -327,43 +319,6 @@ export const DOCUMENT_TYPE_NAMES = {
 export const CategoryProvider = ({ children }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [allowedDocumentTypes, setAllowedDocumentTypes] = useState([]);
-  const [userType, setUserType] = useState('all'); // default user type
-
-  // Get user type from localStorage or context (can be extended)
-  const getUserType = () => {
-    const storedUserType = localStorage.getItem('userType');
-    if (storedUserType) {
-      return storedUserType;
-    }
-    
-    // Try to infer from user data
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        const userData = parsedUser.user || parsedUser;
-        return userData.userType || userData.role || 'all';
-      } catch (e) {
-        console.log('Error parsing user data:', e);
-      }
-    }
-    
-    return 'all';
-  };
-
-  // Get categories visible to the current user
-  const getVisibleCategories = () => {
-    const currentUserType = getUserType();
-    const visibleCategories = {};
-    
-    Object.entries(DOCUMENT_CATEGORIES).forEach(([categoryId, category]) => {
-      if (category.userTypes.includes('all') || category.userTypes.includes(currentUserType)) {
-        visibleCategories[categoryId] = category;
-      }
-    });
-    
-    return visibleCategories;
-  };
 
   const selectCategory = (categoryId) => {
     setSelectedCategory(categoryId);
@@ -394,23 +349,15 @@ export const CategoryProvider = ({ children }) => {
     return allowedDocumentTypes.includes(documentType);
   };
 
-  const setUserTypeManually = (type) => {
-    setUserType(type);
-    localStorage.setItem('userType', type);
-  };
-
   const value = {
     selectedCategory,
     allowedDocumentTypes,
-    userType: getUserType(),
     selectCategory,
     clearCategory,
     getCategoryInfo,
     getDocumentTypeName,
     isDocumentTypeAllowed,
-    setUserTypeManually,
-    categories: getVisibleCategories(), // Only return categories visible to current user
-    allCategories: DOCUMENT_CATEGORIES // Return all categories for admin purposes
+    categories: DOCUMENT_CATEGORIES // Return all categories for all users
   };
 
   return (
