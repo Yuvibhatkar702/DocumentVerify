@@ -1,32 +1,67 @@
 const Document = require('../models/Document');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const AIMlService = require('../services/aiMlService');
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/documents';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter to accept images and PDFs
+const fileFilter = (req, file, cb) => {
+  console.log('File filter - MIME type:', file.mimetype);
+  console.log('File filter - Original name:', file.originalname);
+  
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png', 
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'image/tiff',
+    'image/bmp'
+  ];
+  
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.tiff', '.bmp'];
+  const fileExt = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
+    cb(null, true);
+  } else {
+    console.log('File rejected - Invalid type:', file.mimetype, fileExt);
+    cb(new Error(`Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')} and extensions: ${allowedExtensions.join(', ')}`), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // Upload document
 const uploadDocument = async (req, res) => {
   try {
     console.log('=== UPLOAD REQUEST RECEIVED ===');
-    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('Request file:', req.file ? {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      encoding: req.file.encoding,
-      mimetype: req.file.mimetype,
-      destination: req.file.destination,
-      filename: req.file.filename,
-      path: req.file.path,
-      size: req.file.size
-    } : 'NO FILE RECEIVED');
-    console.log('User from auth middleware:', req.user ? {
-      id: req.user.id,
-      email: req.user.email,
-      name: req.user.name
-    } : 'NO USER DATA');
-    console.log('Raw request URL:', req.url);
-    console.log('Raw request method:', req.method);
-    console.log('Content-Type header:', req.headers['content-type']);
+    console.log('Request headers:', req.headers);
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+    console.log('User from auth middleware:', req.user);
     console.log('=== END UPLOAD DEBUG INFO ===');
 
     // Check if user is authenticated
@@ -63,7 +98,7 @@ const uploadDocument = async (req, res) => {
       'marriage-certificate', 'academic-certificate', 'professional-certificate',
       'visa', 'work-permit', 'residence-permit', 'social-security-card',
       'voter-id', 'utility-bill', 'bank-statement', 'insurance-card',
-      'medical-certificate', 'tax-document', 'property-deed', 'aadhar-card', 'other'
+      'medical-certificate', 'tax-document', 'property-deed', 'other'
     ];
 
     if (!validDocumentTypes.includes(documentType)) {
@@ -93,43 +128,21 @@ const uploadDocument = async (req, res) => {
     const savedDocument = await document.save();
     console.log('Document saved successfully:', savedDocument);
 
-    // Process document with AI/ML service immediately and return results
-    try {
-      const verificationResult = await processDocumentWithAISync(savedDocument._id, savedDocument.filePath, documentType);
-      
-      res.status(201).json({
-        success: true,
-        message: 'Document uploaded and verified successfully',
-        data: {
-          id: savedDocument._id,
-          originalName: savedDocument.originalName,
-          documentType: savedDocument.documentType,
-          fileSize: savedDocument.fileSize,
-          status: verificationResult.status || savedDocument.status,
-          uploadedAt: savedDocument.uploadedAt,
-          verificationResult: verificationResult
-        }
-      });
-    } catch (verificationError) {
-      console.error('Verification error:', verificationError);
-      
-      // Still return success for upload, even if verification fails
-      res.status(201).json({
-        success: true,
-        message: 'Document uploaded successfully, verification in progress',
-        data: {
-          id: savedDocument._id,
-          originalName: savedDocument.originalName,
-          documentType: savedDocument.documentType,
-          fileSize: savedDocument.fileSize,
-          status: savedDocument.status,
-          uploadedAt: savedDocument.uploadedAt
-        }
-      });
-      
-      // Continue processing in background
-      processDocumentWithAI(savedDocument._id, savedDocument.filePath, documentType);
-    }
+    // Process document with AI/ML service
+    processDocumentWithAI(savedDocument._id, savedDocument.filePath, documentType);
+
+    res.status(201).json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        id: savedDocument._id,
+        originalName: savedDocument.originalName,
+        documentType: savedDocument.documentType,
+        fileSize: savedDocument.fileSize,
+        status: savedDocument.status,
+        uploadedAt: savedDocument.uploadedAt
+      }
+    });
 
   } catch (error) {
     console.error('Upload error:', error);
@@ -153,114 +166,6 @@ const uploadDocument = async (req, res) => {
       message: 'Internal server error',
       error: error.message
     });
-  }
-};
-
-// Process document with AI/ML service (synchronous version for immediate results)
-const processDocumentWithAISync = async (documentId, filePath, documentType) => {
-  try {
-    console.log(`Starting SYNC AI/ML processing for document ${documentId}`);
-    
-    // Map document types for AI/ML service
-    const mapDocumentTypeForAI = (frontendType) => {
-      const typeMapping = {
-        'voter-id': 'id-card',
-        'aadhar-card': 'id-card', // Treat Aadhar as ID card
-        'id-card': 'id-card',
-        'passport': 'passport',
-        'driver-license': 'driver-license',
-        'birth-certificate': 'certificate',
-        'marriage-certificate': 'certificate',
-        'academic-certificate': 'certificate',
-        'professional-certificate': 'certificate',
-        'medical-certificate': 'certificate'
-      };
-      return typeMapping[frontendType] || 'other';
-    };
-    
-    const aiDocumentType = mapDocumentTypeForAI(documentType);
-    console.log(`Mapping document type: ${documentType} -> ${aiDocumentType}`);
-    
-    // Update status to processing
-    await Document.findByIdAndUpdate(documentId, {
-      status: 'processing'
-    });
-    
-    // Perform comprehensive document analysis
-    const analysisResult = await AIMlService.analyzeDocument(filePath, aiDocumentType);
-    
-    // Perform format validation
-    const formatValidation = await AIMlService.validateDocumentFormat(filePath, aiDocumentType);
-    
-    // Perform OCR
-    const ocrResult = await AIMlService.performOCR(filePath);
-    
-    // Perform signature detection
-    const signatureResult = await AIMlService.detectSignature(filePath);
-    
-    // Calculate comprehensive authenticity score
-    const authenticityScore = calculateAuthenticityScore(
-      analysisResult, 
-      formatValidation, 
-      ocrResult, 
-      signatureResult
-    );
-    
-    // Determine document status based on comprehensive analysis
-    let documentStatus = 'rejected';
-    let authenticity = 'fake';
-    
-    if (authenticityScore >= 0.8) {
-      documentStatus = 'verified';
-      authenticity = 'authentic';
-    } else if (authenticityScore >= 0.6) {
-      documentStatus = 'pending_review';
-      authenticity = 'suspicious';
-    }
-    
-    const verificationResult = {
-      confidence: Math.round(authenticityScore * 100),
-      authenticity: authenticity,
-      analysisDetails: {
-        aiAnalysis: analysisResult,
-        formatValidation: formatValidation,
-        ocrResult: {
-          text: ocrResult.text || ocrResult.detected_text || '',
-          confidence: ocrResult.confidence || 0
-        },
-        signatureDetection: {
-          detected: signatureResult.signature_detected || signatureResult.found || false,
-          confidence: signatureResult.confidence || 0
-        },
-        qualityScore: analysisResult.verificationDetails?.qualityScore || analysisResult.quality_score || 0,
-        anomalies: analysisResult.anomalies || []
-      }
-    };
-    
-    // Update document with verification results
-    await Document.findByIdAndUpdate(documentId, {
-      status: documentStatus,
-      verificationResult: verificationResult,
-      verifiedAt: new Date()
-    });
-    
-    console.log(`✅ Document ${documentId} processed SYNC - Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}`);
-    
-    return {
-      status: documentStatus,
-      ...verificationResult
-    };
-    
-  } catch (error) {
-    console.error(`Error processing document ${documentId} SYNC:`, error);
-    
-    // Mark document as failed
-    await Document.findByIdAndUpdate(documentId, {
-      status: 'failed',
-      error: error.message
-    });
-    
-    throw error; // Rethrow to handle in caller
   }
 };
 
@@ -376,67 +281,39 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
 // Calculate comprehensive authenticity score
 const calculateAuthenticityScore = (analysisResult, formatValidation, ocrResult, signatureResult) => {
   try {
-    console.log('Calculating authenticity score with:', {
-      analysisResult: analysisResult,
-      formatValidation: formatValidation,
-      ocrResult: ocrResult,
-      signatureResult: signatureResult
-    });
-
-    // Base score from AI analysis - use the confidence score from our improved AI service
+    // Base score from AI analysis
     const aiScore = analysisResult.confidenceScore || 0;
-    console.log('AI Score:', aiScore);
     
     // Format validation score
-    const formatScore = formatValidation.is_valid ? 0.8 : 0.2;
-    console.log('Format Score:', formatScore);
+    const formatScore = formatValidation.format_score || 0;
     
     // OCR confidence score
-    const ocrScore = (ocrResult.confidence || ocrResult.ocr_accuracy || 0.3);
-    console.log('OCR Score:', ocrScore);
+    const ocrScore = ocrResult.confidence || 0;
     
-    // Signature detection score
-    let signatureScore = 0.3; // Default low score
-    if (signatureResult && (signatureResult.signature_detected || signatureResult.found)) {
-      signatureScore = signatureResult.confidence || 0.6;
-    }
-    console.log('Signature Score:', signatureScore);
+    // Signature detection score (if applicable)
+    const signatureScore = signatureResult.signature_detected ? 
+      (signatureResult.confidence || 0.7) : 0.5;
     
     // Quality score
-    const qualityScore = (analysisResult.verificationDetails?.qualityScore || 
-                         analysisResult.quality_score || 50) / 100; // Convert to 0-1 scale
-    console.log('Quality Score:', qualityScore);
+    const qualityScore = analysisResult.verificationDetails?.qualityScore || 0;
     
-    // Check for anomalies (significantly reduces score)
+    // Check for anomalies (reduces score)
     const anomalies = analysisResult.anomalies || [];
-    const anomalyPenalty = anomalies.length * 0.15; // Significant penalty for anomalies
-    console.log('Anomalies:', anomalies.length, 'Penalty:', anomalyPenalty);
+    const anomalyPenalty = anomalies.length * 0.1;
     
     // Weighted calculation
     const weightedScore = (
-      aiScore * 0.50 +           // AI analysis weight (primary factor)
-      formatScore * 0.20 +       // Format validation weight
-      ocrScore * 0.10 +          // OCR confidence weight
+      aiScore * 0.35 +           // AI analysis weight
+      formatScore * 0.25 +       // Format validation weight
+      ocrScore * 0.20 +          // OCR confidence weight
       signatureScore * 0.10 +    // Signature detection weight
       qualityScore * 0.10        // Image quality weight
     );
     
     // Apply anomaly penalty
-    let finalScore = Math.max(0, weightedScore - anomalyPenalty);
+    const finalScore = Math.max(0, weightedScore - anomalyPenalty);
     
-    // Additional penalty for low AI confidence
-    if (aiScore < 0.5) {
-      finalScore = Math.min(finalScore, 0.4); // Cap at 40% for low AI confidence
-    }
-    
-    // Additional penalty for multiple anomalies
-    if (anomalies.length > 2) {
-      finalScore = Math.min(finalScore, 0.3); // Cap at 30% for multiple anomalies
-    }
-    
-    console.log('Final Authenticity Score:', finalScore);
-    
-    return Math.min(1.0, Math.max(0.0, finalScore));
+    return Math.min(1.0, finalScore);
     
   } catch (error) {
     console.error('Error calculating authenticity score:', error);
@@ -576,9 +453,10 @@ const deleteDocument = async (req, res) => {
 };
 
 module.exports = {
+  upload,
   uploadDocument,
   getDocuments,
   getDocument: getDocumentById,
   verifyDocument,
   deleteDocument
-}
+};

@@ -658,6 +658,12 @@ const Dashboard = () => {
                 hover: 'hover:bg-orange-500/30',
                 text: 'text-orange-400',
                 border: 'border-orange-500/30'
+              },
+              red: {
+                bg: 'bg-red-500/20',
+                hover: 'hover:bg-red-500/30',
+                text: 'text-red-400',
+                border: 'border-red-500/30'
               }
             };
             
@@ -671,7 +677,9 @@ const Dashboard = () => {
                 case 'School Certificates': return 'Upload School';
                 case 'College Transcripts': return 'Upload College';
                 case 'Internship Letters': return 'Upload Internship';
+                case 'Government Issued Certificates': return 'Upload Gov';
                 case 'Employment Documents': return 'Upload Employment';
+                case 'Other Documents': return 'Upload Doc';
                 default: return 'Upload Doc';
               }
             };

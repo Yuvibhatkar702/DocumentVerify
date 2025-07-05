@@ -21,10 +21,12 @@ export const DOCUMENT_CATEGORIES = {
     documentTypes: [
       'aadhar-card',
       'passport',
-      'id-card',
+      'voter-id',
       'driver-license',
-      'social-security-card',
-      'voter-id'
+      'pan-card',
+      'ration-card',
+      'student-id-card',
+      'birth-certificate'
     ]
   },
   'certificates': {
@@ -34,11 +36,11 @@ export const DOCUMENT_CATEGORIES = {
     color: 'green',
     userTypes: ['all'],
     documentTypes: [
-      'birth-certificate',
-      'marriage-certificate',
-      'academic-certificate',
-      'professional-certificate',
-      'medical-certificate'
+      'course-completion-certificate',
+      'diploma-certificate',
+      'professional-certification',
+      'language-certificate',
+      'coding-certificate'
     ]
   },
   'school-certificates': {
@@ -48,11 +50,12 @@ export const DOCUMENT_CATEGORIES = {
     color: 'yellow',
     userTypes: ['student', 'admin'], // visible to students and admins
     documentTypes: [
-      'school-diploma',
-      'school-transcript',
-      'school-leaving-certificate',
-      'school-report-card',
-      'school-attendance-certificate'
+      '10th-marksheet',
+      '12th-marksheet',
+      'transfer-certificate',
+      'bonafide-certificate-school',
+      'character-certificate',
+      'school-leaving-certificate'
     ]
   },
   'college-transcripts': {
@@ -62,11 +65,12 @@ export const DOCUMENT_CATEGORIES = {
     color: 'indigo',
     userTypes: ['student', 'graduate', 'admin'],
     documentTypes: [
-      'college-transcript',
+      'semester-marksheet',
+      'provisional-certificate',
       'degree-certificate',
-      'graduation-certificate',
-      'college-marksheet',
-      'college-enrollment-letter'
+      'transcript-of-records',
+      'bonafide-certificate-college',
+      'consolidated-marksheet'
     ]
   },
   'internship-letters': {
@@ -76,10 +80,28 @@ export const DOCUMENT_CATEGORIES = {
     color: 'teal',
     userTypes: ['student', 'graduate', 'professional'],
     documentTypes: [
-      'internship-letter',
+      'internship-offer-letter',
       'internship-completion-certificate',
-      'internship-recommendation-letter',
-      'internship-offer-letter'
+      'letter-of-recommendation',
+      'company-work-letter',
+      'stipend-letter'
+    ]
+  },
+  'government-certificates': {
+    name: 'Government Issued Certificates',
+    description: 'Government documents, category certificates',
+    icon: '🏛️',
+    color: 'red',
+    userTypes: ['student', 'admin', 'all'],
+    documentTypes: [
+      'caste-certificate',
+      'domicile-certificate',
+      'income-certificate',
+      'ews-certificate',
+      'non-creamy-layer-certificate',
+      'disability-certificate',
+      'nationality-certificate',
+      'minority-certificate'
     ]
   },
   'employment-documents': {
@@ -103,59 +125,87 @@ export const DOCUMENT_CATEGORIES = {
     color: 'purple',
     userTypes: ['all'],
     documentTypes: [
+      'bank-passbook-copy',
+      'hostel-admission-slip',
       'utility-bill',
-      'bank-statement',
-      'insurance-card',
-      'tax-document',
-      'property-deed',
-      'visa',
-      'residence-permit',
-      'other'
+      'health-report',
+      'rent-agreement',
+      'travel-pass',
+      'insurance-card'
     ]
   }
 };
 
 // Document type display names - Extended for new categories
 export const DOCUMENT_TYPE_NAMES = {
+  // ID Documents
   'aadhar-card': 'Aadhar Card',
   'passport': 'Passport',
-  'id-card': 'National ID Card',
-  'driver-license': 'Driver\'s License',
-  'birth-certificate': 'Birth Certificate',
-  'marriage-certificate': 'Marriage Certificate',
-  'academic-certificate': 'Academic Certificate',
-  'professional-certificate': 'Professional Certificate',
-  'visa': 'Visa',
-  'work-permit': 'Work Permit',
-  'residence-permit': 'Residence Permit',
-  'social-security-card': 'Social Security Card',
   'voter-id': 'Voter ID',
-  'utility-bill': 'Utility Bill',
-  'bank-statement': 'Bank Statement',
-  'insurance-card': 'Insurance Card',
-  'medical-certificate': 'Medical Certificate',
-  'tax-document': 'Tax Document',
-  'property-deed': 'Property Deed',
-  'other': 'Other Document',
-  // New document types
-  'school-diploma': 'School Diploma',
-  'school-transcript': 'School Transcript',
+  'driver-license': 'Driving License',
+  'pan-card': 'PAN Card',
+  'ration-card': 'Ration Card',
+  'student-id-card': 'Student ID Card',
+  'birth-certificate': 'Birth Certificate',
+  
+  // Certificates
+  'course-completion-certificate': 'Course Completion Certificate',
+  'diploma-certificate': 'Diploma Certificate',
+  'professional-certification': 'Professional Certification (AWS, Google, Coursera, etc.)',
+  'language-certificate': 'Language Certificate (IELTS, TOEFL)',
+  'coding-certificate': 'Coding Certificate (HackerRank, etc.)',
+  
+  // School Certificates
+  '10th-marksheet': '10th Marksheet',
+  '12th-marksheet': '12th Marksheet',
+  'transfer-certificate': 'Transfer Certificate (TC)',
+  'bonafide-certificate-school': 'Bonafide Certificate (School)',
+  'character-certificate': 'Character Certificate',
   'school-leaving-certificate': 'School Leaving Certificate',
-  'school-report-card': 'School Report Card',
-  'school-attendance-certificate': 'School Attendance Certificate',
-  'college-transcript': 'College Transcript',
+  
+  // College Transcripts
+  'semester-marksheet': 'Semester-wise Mark Sheets',
+  'provisional-certificate': 'Provisional Certificate',
   'degree-certificate': 'Degree Certificate',
-  'graduation-certificate': 'Graduation Certificate',
-  'college-marksheet': 'College Marksheet',
-  'college-enrollment-letter': 'College Enrollment Letter',
-  'internship-letter': 'Internship Letter',
-  'internship-completion-certificate': 'Internship Completion Certificate',
-  'internship-recommendation-letter': 'Internship Recommendation Letter',
+  'transcript-of-records': 'Transcript of Records',
+  'bonafide-certificate-college': 'Bonafide Certificate (College)',
+  'consolidated-marksheet': 'Consolidated Marksheet',
+  
+  // Internship Letters
   'internship-offer-letter': 'Internship Offer Letter',
+  'internship-completion-certificate': 'Internship Completion Certificate',
+  'letter-of-recommendation': 'Letter of Recommendation (LOR)',
+  'company-work-letter': 'Company Work Letter',
+  'stipend-letter': 'Stipend Letter',
+  
+  // Government Issued Certificates
+  'caste-certificate': 'Caste Certificate (SC/ST/OBC)',
+  'domicile-certificate': 'Domicile Certificate',
+  'income-certificate': 'Income Certificate',
+  'ews-certificate': 'EWS Certificate',
+  'non-creamy-layer-certificate': 'Non-Creamy Layer Certificate (for OBC)',
+  'disability-certificate': 'Disability Certificate (PWD)',
+  'nationality-certificate': 'Nationality Certificate',
+  'minority-certificate': 'Minority Certificate',
+  
+  // Employment Documents
   'employment-letter': 'Employment Letter',
   'salary-certificate': 'Salary Certificate',
+  'work-permit': 'Work Permit',
   'employment-contract': 'Employment Contract',
-  'job-offer-letter': 'Job Offer Letter'
+  'job-offer-letter': 'Job Offer Letter',
+  
+  // Other Documents
+  'bank-passbook-copy': 'Bank Passbook Copy',
+  'hostel-admission-slip': 'Hostel Admission Slip',
+  'utility-bill': 'Utility Bills (Electricity, Internet)',
+  'health-report': 'Health Reports or Medical Certificate',
+  'rent-agreement': 'Rent Agreement',
+  'travel-pass': 'Travel Pass',
+  'insurance-card': 'Insurance Card',
+  
+  // Legacy support
+  'other': 'Other Document'
 };
 
 export const CategoryProvider = ({ children }) => {

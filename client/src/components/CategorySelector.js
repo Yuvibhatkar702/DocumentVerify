@@ -15,7 +15,8 @@ const CategorySelector = ({ showChangeOption = true }) => {
     yellow: 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/30',
     indigo: 'from-indigo-500/20 to-indigo-600/20 border-indigo-500/30',
     teal: 'from-teal-500/20 to-teal-600/20 border-teal-500/30',
-    orange: 'from-orange-500/20 to-orange-600/20 border-orange-500/30'
+    orange: 'from-orange-500/20 to-orange-600/20 border-orange-500/30',
+    red: 'from-red-500/20 to-red-600/20 border-red-500/30'
   };
   
   const colorClass = colorClasses[categoryInfo?.color] || colorClasses.blue;

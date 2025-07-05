@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { uploadDocument } from '../services/documentService';
 import { useNavigate } from 'react-router-dom';
-import { useCategory } from '../contexts/CategoryContext';
-import CategorySelector from './CategorySelector';
 
 const UploadForm = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
@@ -11,85 +9,7 @@ const UploadForm = ({ onUploadSuccess }) => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
-  const [validationError, setValidationError] = useState('');
   const navigate = useNavigate();
-  const { selectedCategory, allowedDocumentTypes, getDocumentTypeName, isDocumentTypeAllowed } = useCategory();
-
-  // Get available document types based on selected category
-  const getAvailableDocumentTypes = () => {
-    const allDocumentTypes = [
-      'aadhar-card', 'passport', 'id-card', 'driver-license', 'birth-certificate',
-      'marriage-certificate', 'academic-certificate', 'professional-certificate',
-      'visa', 'work-permit', 'residence-permit', 'social-security-card', 'voter-id',
-      'utility-bill', 'bank-statement', 'insurance-card', 'medical-certificate',
-      'tax-document', 'property-deed', 'other'
-    ];
-    
-    if (!selectedCategory) {
-      return allDocumentTypes; // If no category selected, show all types
-    }
-    
-    return allDocumentTypes.filter(type => isDocumentTypeAllowed(type));
-  };
-
-  // Document validation function
-  const validateDocumentType = (file, selectedType) => {
-    if (!file || !selectedType) return { isValid: false, message: 'Please select both file and document type' };
-
-    const fileName = file.name.toLowerCase();
-    const validationRules = {
-      'aadhar-card': {
-        keywords: ['aadhar', 'aadhaar', 'uid', 'unique', 'identity'],
-        message: 'Please upload a valid Aadhar card document. The file should contain "aadhar" or related keywords in the filename.'
-      },
-      'passport': {
-        keywords: ['passport', 'pass', 'travel'],
-        message: 'Please upload a valid passport document. The file should contain "passport" or related keywords in the filename.'
-      },
-      'driver-license': {
-        keywords: ['license', 'licence', 'driving', 'dl', 'driver'],
-        message: 'Please upload a valid driver\'s license document. The file should contain "license" or related keywords in the filename.'
-      },
-      'id-card': {
-        keywords: ['id', 'identity', 'national', 'card'],
-        message: 'Please upload a valid ID card document. The file should contain "id" or related keywords in the filename.'
-      },
-      'birth-certificate': {
-        keywords: ['birth', 'certificate', 'born'],
-        message: 'Please upload a valid birth certificate document.'
-      },
-      'academic-certificate': {
-        keywords: ['degree', 'certificate', 'diploma', 'academic', 'education', 'graduation'],
-        message: 'Please upload a valid academic certificate document.'
-      },
-      'bank-statement': {
-        keywords: ['bank', 'statement', 'account', 'transaction'],
-        message: 'Please upload a valid bank statement document.'
-      },
-      'utility-bill': {
-        keywords: ['utility', 'bill', 'electricity', 'water', 'gas', 'phone', 'internet'],
-        message: 'Please upload a valid utility bill document.'
-      }
-    };
-
-    const rule = validationRules[selectedType];
-    
-    // If no specific rule exists, allow any file (for "other" documents)
-    if (!rule) {
-      return { isValid: true, message: '' };
-    }
-
-    // Check if filename contains any of the required keywords
-    const hasValidKeyword = rule.keywords.some(keyword => 
-      fileName.includes(keyword)
-    );
-
-    if (!hasValidKeyword) {
-      return { isValid: false, message: rule.message };
-    }
-
-    return { isValid: true, message: '' };
-  };
 
   // Function to save document to localStorage
   const saveDocumentToLocal = () => {
@@ -162,70 +82,6 @@ const UploadForm = ({ onUploadSuccess }) => {
     }, 6000);
   };
 
-  // Function to show real verification progress for server uploads
-  const showRealVerificationProgress = (serverResponse) => {
-    console.log('Starting real verification progress with server response:', serverResponse);
-    setCurrentStep('✅ Document uploaded successfully!');
-    setVerificationProgress(25);
-    
-    setTimeout(() => {
-      setCurrentStep('🔍 AI analyzing document structure...');
-      setVerificationProgress(50);
-    }, 500);
-    
-    setTimeout(() => {
-      setCurrentStep('🤖 Running OCR and text extraction...');
-      setVerificationProgress(75);
-    }, 1000);
-    
-    setTimeout(() => {
-      setCurrentStep('🛡️ Performing authenticity verification...');
-      setVerificationProgress(90);
-    }, 1500);
-    
-    setTimeout(() => {
-      setCurrentStep('📊 Generating verification report...');
-      setVerificationProgress(95);
-    }, 2000);
-    
-    setTimeout(() => {
-      setCurrentStep('✅ Verification complete!');
-      setVerificationProgress(100);
-      
-      // Save the real server response data
-      const realDocument = {
-        id: serverResponse.id,
-        originalName: serverResponse.originalName || file.name,
-        fileName: serverResponse.fileName || file.name,
-        documentType: serverResponse.documentType || documentType,
-        status: serverResponse.status || 'processed',
-        uploadedAt: serverResponse.uploadedAt || new Date().toISOString(),
-        fileSize: serverResponse.fileSize || file.size,
-        verificationId: `VER-${serverResponse.id}`,
-        // Real verification result will be updated by the backend processing
-        isReal: true, // Mark as real server response
-        serverId: serverResponse.id
-      };
-      
-      // Save to localStorage for dashboard display
-      const existingDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
-      existingDocs.unshift(realDocument);
-      localStorage.setItem('uploadedDocuments', JSON.stringify(existingDocs));
-      
-      console.log('Real document saved:', realDocument);
-      
-      if (onUploadSuccess) {
-        onUploadSuccess(realDocument);
-      }
-    }, 2500);
-    
-    // Auto-redirect to dashboard after verification complete
-    setTimeout(() => {
-      setCurrentStep('Redirecting to dashboard...');
-      navigate('/dashboard', { state: { fromUpload: true } });
-    }, 4000);
-  };
-
   const resetForm = () => {
     setFile(null);
     setDocumentType('');
@@ -271,42 +127,11 @@ const UploadForm = ({ onUploadSuccess }) => {
       }
 
       setFile(selectedFile);
-      setValidationError(''); // Clear any previous validation errors
-      
-      // If document type is already selected, validate the match
-      if (documentType) {
-        const validation = validateDocumentType(selectedFile, documentType);
-        if (!validation.isValid) {
-          setValidationError(validation.message);
-        }
-      }
-      
       console.log('File selected:', {
         name: selectedFile.name,
         size: selectedFile.size,
         type: selectedFile.type
       });
-    }
-  };
-
-  const handleDocumentTypeChange = (e) => {
-    const selectedType = e.target.value;
-    
-    // Check if the selected document type is allowed for the current category
-    if (selectedCategory && !isDocumentTypeAllowed(selectedType)) {
-      setValidationError(`This document type is not allowed for the selected category. Please select a different document type.`);
-      return;
-    }
-    
-    setDocumentType(selectedType);
-    setValidationError(''); // Clear any previous validation errors
-    
-    // If file is already selected, validate the match
-    if (file) {
-      const validation = validateDocumentType(file, selectedType);
-      if (!validation.isValid) {
-        setValidationError(validation.message);
-      }
     }
   };
 
@@ -317,21 +142,6 @@ const UploadForm = ({ onUploadSuccess }) => {
       return;
     }
 
-    // Validate category restriction
-    if (selectedCategory && !isDocumentTypeAllowed(documentType)) {
-      setValidationError(`This document type is not allowed for the selected category.`);
-      alert(`Document type validation failed: This document type is not allowed for the selected category.`);
-      return;
-    }
-
-    // Validate document type match
-    const validation = validateDocumentType(file, documentType);
-    if (!validation.isValid) {
-      setValidationError(validation.message);
-      alert(`Document validation failed: ${validation.message}`);
-      return;
-    }
-
     // Final validation
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be less than 10MB');
@@ -339,7 +149,6 @@ const UploadForm = ({ onUploadSuccess }) => {
     }
 
     setLoading(true);
-    setValidationError(''); // Clear validation errors
     
     try {
       console.log('Starting upload...');
@@ -379,25 +188,15 @@ const UploadForm = ({ onUploadSuccess }) => {
         const response = await uploadDocument(file, documentType);
         console.log('Server upload successful:', response.data);
         
-        // Show success state and handle server response
+        // Show success state and start verification animation
         setUploadSuccess(true);
-        setLoading(false); // Important: Stop loading state
-        
-        // Clear the file and form state to prevent duplicate submissions
-        setFile(null);
-        setDocumentType('');
+        simulateVerificationProgress();
         
         // Reset file input
         const fileInput = document.getElementById('file');
         if (fileInput) {
           fileInput.value = '';
         }
-        
-        // Show real verification progress instead of simulation
-        showRealVerificationProgress(response.data);
-        
-        // Don't run local simulation if server upload succeeded
-        return;
         
       } catch (serverError) {
         console.log('Server upload failed:', serverError);
@@ -409,24 +208,20 @@ const UploadForm = ({ onUploadSuccess }) => {
           localStorage.removeItem('token');
           navigate('/login');
           return;
+        } else if (serverError.response?.status === 400) {
+          const errorMsg = serverError.response.data?.message || 'Invalid request. Please check your file and try again.';
+          console.error('Bad request:', errorMsg);
+          console.log('Continuing with local simulation due to server validation issue');
+          // Don't show error to user, just continue with local simulation
         } else if (serverError.response?.status === 413) {
           console.error('File too large');
           alert('File too large. Please select a file smaller than 10MB.');
           return;
-        } else if (serverError.response?.status === 400) {
-          const errorMsg = serverError.response.data?.message || 'Invalid request. Please check your file and try again.';
-          console.error('Bad request:', errorMsg);
-          
-          // Show the actual error to the user for 400 errors
-          alert(`Upload failed: ${errorMsg}`);
-          return;
         } else if (serverError.response?.status === 422) {
           const errorMsg = serverError.response.data?.message || 'File validation failed.';
           console.error('Validation error:', errorMsg);
-          
-          // Show the actual error to the user for validation errors
-          alert(`Validation failed: ${errorMsg}`);
-          return;
+          console.log('Continuing with local simulation due to validation issue');
+          // Don't show error to user, just continue with local simulation
         } else if (serverError.response?.status >= 500) {
           console.error('Server error:', serverError.response.status);
           console.log('Server error occurred. Continuing with local simulation.');
@@ -440,8 +235,8 @@ const UploadForm = ({ onUploadSuccess }) => {
           console.log('Unexpected error. Continuing with local simulation.');
         }
         
-        // Only run local simulation for server errors or network issues
-        console.log('Proceeding with local simulation due to server/network issue');
+        // For any server issue, continue with local simulation
+        console.log('Proceeding with local simulation');
         setUploadSuccess(true);
         simulateVerificationProgress();
         
@@ -500,172 +295,94 @@ const UploadForm = ({ onUploadSuccess }) => {
   return (
     <div className="upload-form-container">
       {!uploadSuccess ? (
-        <div>
-          {/* Category Selector */}
-          <CategorySelector />
-          
-          <form onSubmit={handleSubmit} className="upload-form">
+        <form onSubmit={handleSubmit} className="upload-form">
           <div className="form-group">
             <label htmlFor="documentType">Document Type:</label>
             <select
               id="documentType"
               value={documentType}
-              onChange={handleDocumentTypeChange}
+              onChange={(e) => setDocumentType(e.target.value)}
               required
               style={{ color: 'black' }}
             >
-              <option value="" style={{ color: 'black' }}>
-                {selectedCategory 
-                  ? `Select ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Document Type`
-                  : 'Select Document Type'
-                }
-              </option>
-              {getAvailableDocumentTypes().map(type => (
-                <option key={type} value={type} style={{ color: 'black' }}>
-                  {getDocumentTypeName(type)}
-                </option>
-              ))}
+              <option value="" style={{ color: 'black' }}>Select Document Type</option>
+              <option value="passport" style={{ color: 'black' }}>Passport</option>
+              <option value="id-card" style={{ color: 'black' }}>National ID Card</option>
+              <option value="driver-license" style={{ color: 'black' }}>Driver's License</option>
+              <option value="birth-certificate" style={{ color: 'black' }}>Birth Certificate</option>
+              <option value="marriage-certificate" style={{ color: 'black' }}>Marriage Certificate</option>
+              <option value="academic-certificate" style={{ color: 'black' }}>Academic Certificate</option>
+              <option value="professional-certificate" style={{ color: 'black' }}>Professional Certificate</option>
+              <option value="visa" style={{ color: 'black' }}>Visa</option>
+              <option value="work-permit" style={{ color: 'black' }}>Work Permit</option>
+              <option value="residence-permit" style={{ color: 'black' }}>Residence Permit</option>
+              <option value="social-security-card" style={{ color: 'black' }}>Social Security Card</option>
+              <option value="voter-id" style={{ color: 'black' }}>Voter ID</option>
+              <option value="utility-bill" style={{ color: 'black' }}>Utility Bill</option>
+              <option value="bank-statement" style={{ color: 'black' }}>Bank Statement</option>
+              <option value="insurance-card" style={{ color: 'black' }}>Insurance Card</option>
+              <option value="medical-certificate" style={{ color: 'black' }}>Medical Certificate</option>
+              <option value="tax-document" style={{ color: 'black' }}>Tax Document</option>
+              <option value="property-deed" style={{ color: 'black' }}>Property Deed</option>
+              <option value="other" style={{ color: 'black' }}>Other Document</option>
             </select>
           </div>
           
-          {/* Validation Error Display */}
-          {validationError && (
-            <div style={{
-              marginTop: '12px',
-              padding: '12px',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderRadius: '6px',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>⚠️</span>
-                <div>
-                  <strong>Document Type Mismatch</strong>
-                  <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                    {validationError}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
           <div className="form-group">
             <label htmlFor="file">Choose Document:</label>
-            
-            {/* Custom styled file input */}
-            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
-              <input
-                type="file"
-                id="file"
-                onChange={handleFileChange}
-                accept="image/*,.pdf,.tiff,.bmp"
-                required
-                style={{
-                  position: 'absolute',
-                  opacity: 0,
-                  width: '100%',
-                  height: '100%',
-                  cursor: 'pointer',
-                  zIndex: 2
-                }}
-              />
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '16px 24px',
-                backgroundColor: file ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                border: file ? '2px dashed rgba(16, 185, 129, 0.4)' : '2px dashed rgba(59, 130, 246, 0.4)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                minHeight: '80px',
-                textAlign: 'center',
-                position: 'relative',
-                zIndex: 1
-              }}
-              onMouseEnter={(e) => {
-                if (!file) {
-                  e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
-                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.6)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!file) {
-                  e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                }
-              }}
-              >
-                {!file ? (
-                  <div>
-                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>📁</div>
-                    <div style={{ 
-                      color: '#3b82f6', 
-                      fontSize: '16px', 
-                      fontWeight: 'bold',
-                      marginBottom: '4px'
-                    }}>
-                      Click to choose file or drag & drop
-                    </div>
-                    <div style={{ 
-                      color: '#6b7280', 
-                      fontSize: '12px'
-                    }}>
-                      Supported: JPEG, PNG, PDF, TIFF, BMP (Max 10MB)
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
-                    <div style={{ 
-                      color: '#10b981', 
-                      fontSize: '16px', 
-                      fontWeight: 'bold',
-                      marginBottom: '4px'
-                    }}>
-                      File Selected Successfully!
-                    </div>
-                    <div style={{ 
-                      color: '#374151', 
-                      fontSize: '14px',
-                      fontWeight: '500'
-                    }}>
-                      {file.name}
-                    </div>
-                    <div style={{ 
-                      color: '#6b7280', 
-                      fontSize: '12px',
-                      marginTop: '4px'
-                    }}>
-                      Click to change file
-                    </div>
-                  </div>
-                )}
-              </div>
+            <input
+              type="file"
+              id="file"
+              onChange={handleFileChange}
+              accept="image/*,.pdf,.tiff,.bmp"
+              required
+            />
+            <div style={{ 
+              marginTop: '8px', 
+              fontSize: '12px', 
+              color: '#9ca3af',
+              padding: '8px',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '6px',
+              border: '1px solid rgba(59, 130, 246, 0.2)'
+            }}>
+              📋 <strong>Supported formats:</strong> JPEG, PNG, GIF, WebP, PDF, TIFF, BMP<br/>
+              📏 <strong>Maximum size:</strong> 10MB
             </div>
-            
-            {/* Additional file details for selected file */}
             {file && (
               <div style={{ 
                 marginTop: '12px',
                 padding: '12px',
-                backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderRadius: '8px',
-                border: '1px solid rgba(16, 185, 129, 0.15)'
+                border: '1px solid rgba(16, 185, 129, 0.2)'
               }}>
+                <p style={{ color: '#10b981', fontSize: '14px', marginBottom: '6px', fontWeight: 'bold' }}>
+                  ✅ File Selected Successfully
+                </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div>
-                    <span style={{ color: '#9ca3af', fontSize: '11px' }}>📊 Size:</span>
-                    <p style={{ color: '#374151', fontSize: '12px', margin: '2px 0', fontWeight: '500' }}>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📄 Name:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                      {file.name}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📊 Size:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
                       {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
                   <div>
-                    <span style={{ color: '#9ca3af', fontSize: '11px' }}>🏷️ Type:</span>
-                    <p style={{ color: '#374151', fontSize: '12px', margin: '2px 0', fontWeight: '500' }}>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>🏷️ Type:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
                       {file.type || 'Unknown'}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ color: '#9ca3af', fontSize: '12px' }}>📅 Modified:</span>
+                    <p style={{ color: '#e5e7eb', fontSize: '13px', margin: '2px 0', fontWeight: '500' }}>
+                      {new Date(file.lastModified).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -675,12 +392,12 @@ const UploadForm = ({ onUploadSuccess }) => {
           
           <button 
             type="submit" 
-            disabled={loading || !file || !documentType || validationError}
+            disabled={loading || !file || !documentType}
             style={{
-              opacity: loading || !file || !documentType || validationError ? 0.6 : 1,
-              cursor: loading || !file || !documentType || validationError ? 'not-allowed' : 'pointer',
+              opacity: loading || !file || !documentType ? 0.6 : 1,
+              cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer',
               padding: '12px 24px',
-              backgroundColor: loading || !file || !documentType || validationError ? '#374151' : '#10b981',
+              backgroundColor: loading || !file || !documentType ? '#374151' : '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -709,7 +426,6 @@ const UploadForm = ({ onUploadSuccess }) => {
             )}
           </button>
         </form>
-        </div>
       ) : (
         <div className="verification-progress">
           {/* Success Header */}

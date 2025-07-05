@@ -58,6 +58,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Serve client build files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/build')));
+}
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
@@ -71,6 +76,22 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime()
   });
 });
+
+// Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Serve React app for any other routes in production
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build/index.html'));
+  });
+}
 
 // Error handling middleware
 app.use(errorHandler);
