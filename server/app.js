@@ -86,19 +86,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Serve React app for any other routes in production
+// Error handling middleware
+app.use(errorHandler);
+
+// Serve React app for any other routes in production (must be last)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/build/index.html'));
   });
+} else {
+  // 404 handler for development
+  app.use('*', (req, res) => {
+    res.status(404).json({ message: 'Route not found' });
+  });
 }
-
-// Error handling middleware
-app.use(errorHandler);
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
 
 module.exports = app;
