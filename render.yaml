@@ -3,7 +3,7 @@ services:
   - type: web
     name: docuverify-fullstack
     env: node
-    buildCommand: npm run railway:build
+    buildCommand: npm install && cd client && npm install && npm run build && cd ..
     startCommand: npm start
     plan: free
     envVars:
