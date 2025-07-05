@@ -23,9 +23,9 @@ const LandingPage = () => {
       {/* Header */}
       <header className="w-full z-50 px-6 py-4 flex justify-between items-center relative">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">🔐 DocuVerify</h1>
-        <nav className="flex space-x-6 text-sm font-medium">
-          <RouterLink to="/login" className="hover:text-blue-400 transition">Login</RouterLink>
-          <RouterLink to="/register" className="bg-white text-black px-4 py-2 rounded-xl hover:bg-gray-200 transition shadow-lg">Get Started</RouterLink>
+        <nav className="flex space-x-4 items-center text-sm font-medium">
+          <RouterLink to="/login" className="px-4 py-2 hover:text-blue-400 transition rounded-lg">Login</RouterLink>
+          <RouterLink to="/register" className="bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-200 transition shadow-lg">Get Started</RouterLink>
         </nav>
       </header>
 
@@ -51,10 +51,10 @@ const LandingPage = () => {
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
           transition={{ delay: 0.6 }} 
-          className="mt-8 flex gap-4"
+          className="mt-8 flex gap-4 justify-center items-center"
         >
-          <RouterLink to="/register" className="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition transform hover:scale-105 shadow-xl">Get Started</RouterLink>
-          <RouterLink to="/login" className="px-6 py-3 border border-white text-white rounded-lg hover:bg-white hover:text-black transition transform hover:scale-105">Login</RouterLink>
+          <RouterLink to="/register" className="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition transform hover:scale-105 shadow-xl font-medium">Get Started</RouterLink>
+          <RouterLink to="/login" className="px-6 py-3 border border-white text-white rounded-lg hover:bg-white hover:text-black transition transform hover:scale-105 shadow-xl font-medium">Login</RouterLink>
         </motion.div>
       </section>
 

@@ -1,6 +1,101 @@
 import React, { useState } from 'react';
 import { uploadDocument } from '../services/documentService';
 import { useNavigate } from 'react-router-dom';
+import { useCategory } from '../contexts/CategoryContext';
+
+// Document structure validation function
+const validateDocumentStructure = (documentType, file) => {
+  // Basic validation rules for different document types
+  const validationRules = {
+    // ID Documents
+    'aadhar-card': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 5 * 1024 * 1024, // 5MB
+      message: 'Aadhar card should be a clear image showing the 12-digit number'
+    },
+    'pan-card': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 5 * 1024 * 1024,
+      message: 'PAN card should be a clear image showing the 10-character PAN number'
+    },
+    'passport': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 5 * 1024 * 1024,
+      message: 'Passport should be a clear image of the main page with photo'
+    },
+    'driving-license': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 5 * 1024 * 1024,
+      message: 'Driving license should be a clear image of both sides'
+    },
+    
+    // Educational Documents
+    'ssc-10th-marksheet': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 10 * 1024 * 1024,
+      message: 'SSC marksheet should be a clear image or PDF showing grades'
+    },
+    'hsc-12th-marksheet': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 10 * 1024 * 1024,
+      message: 'HSC marksheet should be a clear image or PDF showing grades'
+    },
+    'bachelors-degree': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf'],
+      maxSize: 10 * 1024 * 1024,
+      message: 'Degree certificate should be a clear image or PDF'
+    },
+    
+    // Financial Documents
+    'bank-statement': {
+      expectedFormats: ['application/pdf', 'image/jpeg', 'image/png'],
+      maxSize: 10 * 1024 * 1024,
+      message: 'Bank statement should preferably be a PDF or clear image'
+    },
+    'salary-slip': {
+      expectedFormats: ['application/pdf', 'image/jpeg', 'image/png'],
+      maxSize: 5 * 1024 * 1024,
+      message: 'Salary slip should be a clear image or PDF'
+    },
+    
+    // Medical Documents
+    'covid-vaccination-certificate': {
+      expectedFormats: ['application/pdf', 'image/jpeg', 'image/png'],
+      maxSize: 5 * 1024 * 1024,
+      message: 'Vaccination certificate should be a clear image or PDF'
+    },
+    
+    // Default for other document types
+    'default': {
+      expectedFormats: ['image/jpeg', 'image/png', 'application/pdf', 'image/tiff', 'image/bmp'],
+      maxSize: 10 * 1024 * 1024,
+      message: 'Document should be a clear image or PDF'
+    }
+  };
+
+  const rules = validationRules[documentType] || validationRules.default;
+  
+  // Check file format
+  if (!rules.expectedFormats.includes(file.type)) {
+    return {
+      isValid: false,
+      message: `${rules.message}. Expected formats: ${rules.expectedFormats.join(', ')}`
+    };
+  }
+  
+  // Check file size
+  if (file.size > rules.maxSize) {
+    return {
+      isValid: false,
+      message: `File size should be less than ${(rules.maxSize / 1024 / 1024).toFixed(1)}MB for ${documentType}`
+    };
+  }
+  
+  return {
+    isValid: true,
+    message: 'Document structure validation passed'
+  };
+};
 
 const UploadForm = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
@@ -10,6 +105,15 @@ const UploadForm = ({ onUploadSuccess }) => {
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
   const navigate = useNavigate();
+  
+  // Use category context for document validation
+  const { 
+    selectedCategory, 
+    allowedDocumentTypes, 
+    getDocumentTypeName, 
+    isDocumentTypeAllowed,
+    categories 
+  } = useCategory();
 
   // Function to save document to localStorage
   const saveDocumentToLocal = () => {
@@ -142,9 +246,22 @@ const UploadForm = ({ onUploadSuccess }) => {
       return;
     }
 
+    // Document validation - check if document type is allowed for selected category
+    if (selectedCategory && !isDocumentTypeAllowed(documentType)) {
+      alert(`The selected document type "${getDocumentTypeName(documentType)}" is not allowed for the category "${categories[selectedCategory]?.name}". Please select a different document type or category.`);
+      return;
+    }
+
     // Final validation
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be less than 10MB');
+      return;
+    }
+
+    // Document structure validation based on document type
+    const documentStructureValidation = validateDocumentStructure(documentType, file);
+    if (!documentStructureValidation.isValid) {
+      alert(`Document validation failed: ${documentStructureValidation.message}`);
       return;
     }
 
@@ -306,37 +423,147 @@ const UploadForm = ({ onUploadSuccess }) => {
               style={{ color: 'black' }}
             >
               <option value="" style={{ color: 'black' }}>Select Document Type</option>
-              <option value="passport" style={{ color: 'black' }}>Passport</option>
-              <option value="id-card" style={{ color: 'black' }}>National ID Card</option>
-              <option value="driver-license" style={{ color: 'black' }}>Driver's License</option>
-              <option value="birth-certificate" style={{ color: 'black' }}>Birth Certificate</option>
-              <option value="marriage-certificate" style={{ color: 'black' }}>Marriage Certificate</option>
-              <option value="academic-certificate" style={{ color: 'black' }}>Academic Certificate</option>
-              <option value="professional-certificate" style={{ color: 'black' }}>Professional Certificate</option>
-              <option value="visa" style={{ color: 'black' }}>Visa</option>
-              <option value="work-permit" style={{ color: 'black' }}>Work Permit</option>
-              <option value="residence-permit" style={{ color: 'black' }}>Residence Permit</option>
-              <option value="social-security-card" style={{ color: 'black' }}>Social Security Card</option>
-              <option value="voter-id" style={{ color: 'black' }}>Voter ID</option>
-              <option value="utility-bill" style={{ color: 'black' }}>Utility Bill</option>
-              <option value="bank-statement" style={{ color: 'black' }}>Bank Statement</option>
-              <option value="insurance-card" style={{ color: 'black' }}>Insurance Card</option>
-              <option value="medical-certificate" style={{ color: 'black' }}>Medical Certificate</option>
-              <option value="tax-document" style={{ color: 'black' }}>Tax Document</option>
-              <option value="property-deed" style={{ color: 'black' }}>Property Deed</option>
-              <option value="other" style={{ color: 'black' }}>Other Document</option>
+              {selectedCategory ? (
+                // Show only documents for selected category
+                allowedDocumentTypes.map(docType => (
+                  <option key={docType} value={docType} style={{ color: 'black' }}>
+                    {getDocumentTypeName(docType)}
+                  </option>
+                ))
+              ) : (
+                // Show all document types grouped by category
+                Object.entries(categories).map(([categoryId, category]) => (
+                  <optgroup key={categoryId} label={`${category.icon} ${category.name}`}>
+                    {category.documentTypes.map(docType => (
+                      <option key={docType} value={docType} style={{ color: 'black' }}>
+                        {getDocumentTypeName(docType)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))
+              )}
             </select>
+            
+            {selectedCategory && (
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '12px', 
+                color: '#10b981',
+                padding: '8px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: '6px',
+                border: '1px solid rgba(16, 185, 129, 0.2)'
+              }}>
+                📂 <strong>Category:</strong> {categories[selectedCategory]?.name}<br/>
+                📝 <strong>Description:</strong> {categories[selectedCategory]?.description}
+              </div>
+            )}
           </div>
           
           <div className="form-group">
             <label htmlFor="file">Choose Document:</label>
-            <input
-              type="file"
-              id="file"
-              onChange={handleFileChange}
-              accept="image/*,.pdf,.tiff,.bmp"
-              required
-            />
+            
+            {/* Beautiful Upload Button */}
+            <div style={{
+              position: 'relative',
+              display: 'inline-block',
+              width: '100%',
+              marginTop: '8px'
+            }}>
+              <input
+                type="file"
+                id="file"
+                onChange={handleFileChange}
+                accept="image/*,.pdf,.tiff,.bmp"
+                required
+                style={{
+                  position: 'absolute',
+                  opacity: 0,
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer',
+                  zIndex: 2
+                }}
+              />
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '40px 20px',
+                border: '2px dashed #e5e7eb',
+                borderRadius: '12px',
+                backgroundColor: '#f9fafb',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
+                minHeight: '150px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.borderColor = '#10b981';
+                e.target.style.backgroundColor = '#f0fdf4';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.borderColor = '#e5e7eb';
+                e.target.style.backgroundColor = '#f9fafb';
+              }}
+              >
+                {/* Upload Icon */}
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px',
+                  color: '#10b981'
+                }}>
+                  📤
+                </div>
+                
+                {/* Main Text */}
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  {file ? file.name : 'Click to upload or drag & drop'}
+                </div>
+                
+                {/* Subtitle */}
+                <div style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  marginBottom: '16px'
+                }}>
+                  {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Select your document file'}
+                </div>
+                
+                {/* Upload Button */}
+                <div style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}>
+                  {file ? '📎 Change File' : '📁 Browse Files'}
+                </div>
+                
+                {/* Background Pattern */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)',
+                  zIndex: 1
+                }} />
+              </div>
+            </div>
+            
             <div style={{ 
               marginTop: '8px', 
               fontSize: '12px', 
@@ -396,34 +623,69 @@ const UploadForm = ({ onUploadSuccess }) => {
             style={{
               opacity: loading || !file || !documentType ? 0.6 : 1,
               cursor: loading || !file || !documentType ? 'not-allowed' : 'pointer',
-              padding: '12px 24px',
-              backgroundColor: loading || !file || !documentType ? '#374151' : '#10b981',
+              padding: '16px 32px',
+              background: loading || !file || !documentType 
+                ? 'linear-gradient(135deg, #6b7280 0%, #374151 100%)' 
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '12px',
               fontSize: '16px',
-              fontWeight: 'bold',
+              fontWeight: '600',
               transition: 'all 0.3s ease',
               width: '100%',
-              marginTop: '20px'
+              marginTop: '24px',
+              boxShadow: loading || !file || !documentType 
+                ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+                : '0 10px 25px -5px rgba(16, 185, 129, 0.3)',
+              transform: loading || !file || !documentType ? 'none' : 'translateY(-2px)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading && file && documentType) {
+                e.target.style.transform = 'translateY(-3px)';
+                e.target.style.boxShadow = '0 15px 30px -5px rgba(16, 185, 129, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading && file && documentType) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 10px 25px -5px rgba(16, 185, 129, 0.3)';
+              }
             }}
           >
             {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                 <span style={{
                   display: 'inline-block',
-                  width: '16px',
-                  height: '16px',
-                  border: '2px solid transparent',
-                  borderTop: '2px solid white',
+                  width: '20px',
+                  height: '20px',
+                  border: '3px solid transparent',
+                  borderTop: '3px solid white',
                   borderRadius: '50%',
                   animation: 'spin 1s linear infinite'
                 }} />
-                Uploading...
+                <span>Processing Document...</span>
               </span>
             ) : (
-              '📤 Upload & Verify Document'
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>🔐</span>
+                <span>Upload & Verify Document</span>
+              </span>
             )}
+            
+            {/* Button shine effect */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: '-100%',
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
+              transition: 'left 0.5s ease',
+              zIndex: 1
+            }} />
           </button>
         </form>
       ) : (

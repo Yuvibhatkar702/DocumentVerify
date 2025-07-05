@@ -10,199 +10,315 @@ export const useCategory = () => {
   return context;
 };
 
-// Document type categorization - Extensible for future categories
+// Document type categorization - Comprehensive for General users
 export const DOCUMENT_CATEGORIES = {
   'identity': {
     name: 'ID Documents',
-    description: 'Passport, ID card, license',
+    description: '📄 Documents to prove identity',
     icon: '🆔',
     color: 'blue',
-    userTypes: ['all'], // visible to all users
+    userTypes: ['all', 'general'], // visible to all users
     documentTypes: [
       'aadhar-card',
-      'passport',
-      'voter-id',
-      'driver-license',
       'pan-card',
+      'voter-id',
+      'passport',
+      'driving-license',
       'ration-card',
+      'npr-id',
+      'social-security-id',
+      'employee-id-card',
       'student-id-card',
-      'birth-certificate'
+      'senior-citizen-card',
+      'visa',
+      'oci-pio-card',
+      'other-id-document'
     ]
   },
-  'certificates': {
-    name: 'Certificates',
-    description: 'Academic, professional docs',
-    icon: '📋',
-    color: 'green',
-    userTypes: ['all'],
-    documentTypes: [
-      'course-completion-certificate',
-      'diploma-certificate',
-      'professional-certification',
-      'language-certificate',
-      'coding-certificate'
-    ]
-  },
-  'school-certificates': {
-    name: 'School Certificates',
-    description: 'School records, diplomas',
+  'educational': {
+    name: 'Educational Certificates',
+    description: '📄 Academic records and proofs',
     icon: '🎓',
-    color: 'yellow',
-    userTypes: ['student', 'admin'], // visible to students and admins
+    color: 'green',
+    userTypes: ['all', 'general'],
     documentTypes: [
-      '10th-marksheet',
-      '12th-marksheet',
-      'transfer-certificate',
-      'bonafide-certificate-school',
-      'character-certificate',
-      'school-leaving-certificate'
-    ]
-  },
-  'college-transcripts': {
-    name: 'College Transcripts',
-    description: 'University records, degrees',
-    icon: '📜',
-    color: 'indigo',
-    userTypes: ['student', 'graduate', 'admin'],
-    documentTypes: [
-      'semester-marksheet',
+      'ssc-10th-marksheet',
+      'hsc-12th-marksheet',
+      'diploma-certificate',
+      'bachelors-degree',
+      'masters-degree',
       'provisional-certificate',
-      'degree-certificate',
-      'transcript-of-records',
-      'bonafide-certificate-college',
-      'consolidated-marksheet'
-    ]
-  },
-  'internship-letters': {
-    name: 'Internship Letters',
-    description: 'Internship docs, references',
-    icon: '💼',
-    color: 'teal',
-    userTypes: ['student', 'graduate', 'professional'],
-    documentTypes: [
-      'internship-offer-letter',
+      'migration-certificate',
+      'character-certificate',
+      'transfer-certificate',
+      'bonafide-certificate',
+      'admit-card',
+      'hall-ticket',
+      'entrance-exam-result',
       'internship-completion-certificate',
-      'letter-of-recommendation',
-      'company-work-letter',
-      'stipend-letter'
+      'mooc-online-course-certificate',
+      'other-educational-document'
     ]
   },
   'government-certificates': {
     name: 'Government Issued Certificates',
-    description: 'Government documents, category certificates',
+    description: '📄 Documents issued by govt authorities',
     icon: '🏛️',
-    color: 'red',
-    userTypes: ['student', 'admin', 'all'],
+    color: 'indigo',
+    userTypes: ['all', 'general'],
     documentTypes: [
       'caste-certificate',
-      'domicile-certificate',
       'income-certificate',
-      'ews-certificate',
-      'non-creamy-layer-certificate',
+      'domicile-certificate',
+      'birth-certificate',
+      'death-certificate',
       'disability-certificate',
-      'nationality-certificate',
-      'minority-certificate'
+      'ews-certificate',
+      'marriage-certificate',
+      'police-character-certificate',
+      'gazette-name-change-certificate',
+      'adoption-certificate',
+      'legal-heir-certificate',
+      'obc-sc-st-certificate',
+      'other-govt-issued-certificate'
     ]
   },
-  'employment-documents': {
-    name: 'Employment Documents',
-    description: 'Work permits, employment letters',
-    icon: '👔',
-    color: 'orange',
-    userTypes: ['professional', 'admin'],
+  'financial': {
+    name: 'Financial Documents',
+    description: '📄 Income, banking, and financial data',
+    icon: '💰',
+    color: 'yellow',
+    userTypes: ['all', 'general'],
     documentTypes: [
-      'employment-letter',
+      'bank-passbook',
+      'bank-statement',
+      'salary-slip',
+      'form-16',
+      'income-tax-return',
+      'pf-account-details',
+      'loan-approval-letter',
+      'emi-schedule',
+      'credit-card-statement',
+      'investment-proof',
+      'uan-epfo-slip',
+      'digital-payment-receipt',
+      'other-financial-document'
+    ]
+  },
+  'address-proof': {
+    name: 'Address Proof',
+    description: '📄 Residential verification documents',
+    icon: '🏠',
+    color: 'purple',
+    userTypes: ['all', 'general'],
+    documentTypes: [
+      'aadhar-card-address',
+      'voter-id-address',
+      'passport-address',
+      'electricity-bill',
+      'water-bill',
+      'gas-bill',
+      'property-tax-receipt',
+      'rent-agreement',
+      'telephone-landline-bill',
+      'registered-sale-deed',
+      'bank-passbook-address',
+      'ration-card-address',
+      'other-address-proof'
+    ]
+  },
+  'employment': {
+    name: 'Employment Documents',
+    description: '📄 Work-related proofs',
+    icon: '💼',
+    color: 'orange',
+    userTypes: ['all', 'general'],
+    documentTypes: [
+      'offer-letter',
+      'appointment-letter',
+      'experience-letter',
+      'relieving-letter',
       'salary-certificate',
-      'work-permit',
-      'employment-contract',
-      'job-offer-letter'
+      'employment-agreement',
+      'joining-report',
+      'noc-certificate',
+      'promotion-letter',
+      'appraisal-letter',
+      'internship-letter',
+      'employment-id',
+      'other-work-document'
+    ]
+  },
+  'medical': {
+    name: 'Medical Documents',
+    description: '📄 Health, insurance, and treatment documents',
+    icon: '🏥',
+    color: 'red',
+    userTypes: ['all', 'general'],
+    documentTypes: [
+      'medical-report',
+      'covid-vaccination-certificate',
+      'covid-test-report',
+      'health-card',
+      'insurance-policy',
+      'insurance-claim-report',
+      'doctor-prescription',
+      'discharge-summary',
+      'opd-slip',
+      'disability-certificate-medical',
+      'blood-group-card',
+      'other-medical-document'
     ]
   },
   'other': {
     name: 'Other Documents',
-    description: 'Bank statements, bills',
+    description: '📄 Any miscellaneous or unclassified documents',
     icon: '📄',
-    color: 'purple',
-    userTypes: ['all'],
+    color: 'gray',
+    userTypes: ['all', 'general'],
     documentTypes: [
-      'bank-passbook-copy',
-      'hostel-admission-slip',
-      'utility-bill',
-      'health-report',
-      'rent-agreement',
-      'travel-pass',
-      'insurance-card'
+      'affidavit',
+      'notarized-documents',
+      'self-declaration',
+      'non-employment-agreements',
+      'court-orders',
+      'legal-notices',
+      'school-leaving-certificate',
+      'hostel-form',
+      'club-ngo-membership-card',
+      'vehicle-registration-rc',
+      'driving-school-certificate',
+      'personal-notes',
+      'other-miscellaneous-document'
     ]
   }
 };
 
-// Document type display names - Extended for new categories
+// Document type display names - Comprehensive for General users
 export const DOCUMENT_TYPE_NAMES = {
   // ID Documents
   'aadhar-card': 'Aadhar Card',
-  'passport': 'Passport',
-  'voter-id': 'Voter ID',
-  'driver-license': 'Driving License',
   'pan-card': 'PAN Card',
+  'voter-id': 'Voter ID',
+  'passport': 'Passport',
+  'driving-license': 'Driving License',
   'ration-card': 'Ration Card',
+  'npr-id': 'National Population Register (NPR) ID',
+  'social-security-id': 'Social Security ID (if international)',
+  'employee-id-card': 'Employee ID Card',
   'student-id-card': 'Student ID Card',
-  'birth-certificate': 'Birth Certificate',
+  'senior-citizen-card': 'Senior Citizen Card',
+  'visa': 'Visa',
+  'oci-pio-card': 'OCI/PIO Card',
+  'other-id-document': '🟣 Other ID Document',
   
-  // Certificates
-  'course-completion-certificate': 'Course Completion Certificate',
+  // Educational Certificates
+  'ssc-10th-marksheet': 'SSC (10th) Marksheet',
+  'hsc-12th-marksheet': 'HSC (12th) Marksheet',
   'diploma-certificate': 'Diploma Certificate',
-  'professional-certification': 'Professional Certification (AWS, Google, Coursera, etc.)',
-  'language-certificate': 'Language Certificate (IELTS, TOEFL)',
-  'coding-certificate': 'Coding Certificate (HackerRank, etc.)',
-  
-  // School Certificates
-  '10th-marksheet': '10th Marksheet',
-  '12th-marksheet': '12th Marksheet',
-  'transfer-certificate': 'Transfer Certificate (TC)',
-  'bonafide-certificate-school': 'Bonafide Certificate (School)',
-  'character-certificate': 'Character Certificate',
-  'school-leaving-certificate': 'School Leaving Certificate',
-  
-  // College Transcripts
-  'semester-marksheet': 'Semester-wise Mark Sheets',
+  'bachelors-degree': 'Bachelor\'s Degree',
+  'masters-degree': 'Master\'s Degree',
   'provisional-certificate': 'Provisional Certificate',
-  'degree-certificate': 'Degree Certificate',
-  'transcript-of-records': 'Transcript of Records',
-  'bonafide-certificate-college': 'Bonafide Certificate (College)',
-  'consolidated-marksheet': 'Consolidated Marksheet',
-  
-  // Internship Letters
-  'internship-offer-letter': 'Internship Offer Letter',
+  'migration-certificate': 'Migration Certificate',
+  'character-certificate': 'Character Certificate',
+  'transfer-certificate': 'Transfer Certificate',
+  'bonafide-certificate': 'Bonafide Certificate',
+  'admit-card': 'Admit Card',
+  'hall-ticket': 'Hall Ticket',
+  'entrance-exam-result': 'Entrance Exam Result (JEE/NEET etc.)',
   'internship-completion-certificate': 'Internship Completion Certificate',
-  'letter-of-recommendation': 'Letter of Recommendation (LOR)',
-  'company-work-letter': 'Company Work Letter',
-  'stipend-letter': 'Stipend Letter',
+  'mooc-online-course-certificate': 'MOOC/Online Course Certificate (Coursera, edX, etc.)',
+  'other-educational-document': '🟣 Other Educational Document',
   
   // Government Issued Certificates
-  'caste-certificate': 'Caste Certificate (SC/ST/OBC)',
-  'domicile-certificate': 'Domicile Certificate',
+  'caste-certificate': 'Caste Certificate',
   'income-certificate': 'Income Certificate',
+  'domicile-certificate': 'Domicile Certificate',
+  'birth-certificate': 'Birth Certificate',
+  'death-certificate': 'Death Certificate',
+  'disability-certificate': 'Disability Certificate',
   'ews-certificate': 'EWS Certificate',
-  'non-creamy-layer-certificate': 'Non-Creamy Layer Certificate (for OBC)',
-  'disability-certificate': 'Disability Certificate (PWD)',
-  'nationality-certificate': 'Nationality Certificate',
-  'minority-certificate': 'Minority Certificate',
+  'marriage-certificate': 'Marriage Certificate',
+  'police-character-certificate': 'Character Certificate (Police)',
+  'gazette-name-change-certificate': 'Gazette Name Change Certificate',
+  'adoption-certificate': 'Adoption Certificate',
+  'legal-heir-certificate': 'Legal Heir Certificate',
+  'obc-sc-st-certificate': 'OBC/SC/ST Certificate',
+  'other-govt-issued-certificate': '🟣 Other Govt-Issued Certificate',
+  
+  // Financial Documents
+  'bank-passbook': 'Bank Passbook',
+  'bank-statement': 'Bank Statement (PDF/Image)',
+  'salary-slip': 'Salary Slip',
+  'form-16': 'Form 16',
+  'income-tax-return': 'Income Tax Return (ITR)',
+  'pf-account-details': 'PF Account Details',
+  'loan-approval-letter': 'Loan Approval Letter',
+  'emi-schedule': 'EMI Schedule',
+  'credit-card-statement': 'Credit Card Statement',
+  'investment-proof': 'Investment Proof (FD/RD/Mutual Fund)',
+  'uan-epfo-slip': 'UAN/EPFO Slip',
+  'digital-payment-receipt': 'Digital Payment Receipt (UPI/Wallet)',
+  'other-financial-document': '🟣 Other Financial Document',
+  
+  // Address Proof
+  'aadhar-card-address': 'Aadhar Card (if address visible)',
+  'voter-id-address': 'Voter ID',
+  'passport-address': 'Passport (with address)',
+  'electricity-bill': 'Electricity Bill',
+  'water-bill': 'Water Bill',
+  'gas-bill': 'Gas Bill',
+  'property-tax-receipt': 'Property Tax Receipt',
+  'rent-agreement': 'Rent Agreement',
+  'telephone-landline-bill': 'Telephone/Landline Bill',
+  'registered-sale-deed': 'Registered Sale Deed',
+  'bank-passbook-address': 'Bank Passbook (with address)',
+  'ration-card-address': 'Ration Card',
+  'other-address-proof': '🟣 Other Address Proof',
   
   // Employment Documents
-  'employment-letter': 'Employment Letter',
+  'offer-letter': 'Offer Letter',
+  'appointment-letter': 'Appointment Letter',
+  'experience-letter': 'Experience Letter',
+  'relieving-letter': 'Relieving Letter',
   'salary-certificate': 'Salary Certificate',
-  'work-permit': 'Work Permit',
-  'employment-contract': 'Employment Contract',
-  'job-offer-letter': 'Job Offer Letter',
+  'employment-agreement': 'Employment Agreement',
+  'joining-report': 'Joining Report',
+  'noc-certificate': 'NOC (No Objection Certificate)',
+  'promotion-letter': 'Promotion Letter',
+  'appraisal-letter': 'Appraisal Letter',
+  'internship-letter': 'Internship Letter',
+  'employment-id': 'Employment ID',
+  'other-work-document': '🟣 Other Work Document',
+  
+  // Medical Documents
+  'medical-report': 'Medical Report',
+  'covid-vaccination-certificate': 'COVID Vaccination Certificate',
+  'covid-test-report': 'COVID Test Report',
+  'health-card': 'Health Card (Ayushman Bharat, etc.)',
+  'insurance-policy': 'Insurance Policy',
+  'insurance-claim-report': 'Insurance Claim Report',
+  'doctor-prescription': 'Doctor Prescription',
+  'discharge-summary': 'Discharge Summary',
+  'opd-slip': 'OPD Slip',
+  'disability-certificate-medical': 'Disability Certificate (Govt-issued)',
+  'blood-group-card': 'Blood Group Card',
+  'other-medical-document': '🟣 Other Medical Document',
   
   // Other Documents
-  'bank-passbook-copy': 'Bank Passbook Copy',
-  'hostel-admission-slip': 'Hostel Admission Slip',
-  'utility-bill': 'Utility Bills (Electricity, Internet)',
-  'health-report': 'Health Reports or Medical Certificate',
-  'rent-agreement': 'Rent Agreement',
-  'travel-pass': 'Travel Pass',
-  'insurance-card': 'Insurance Card',
+  'affidavit': 'Affidavit',
+  'notarized-documents': 'Notarized Documents',
+  'self-declaration': 'Self-declaration',
+  'non-employment-agreements': 'Agreements (Non-employment)',
+  'court-orders': 'Court Orders',
+  'legal-notices': 'Legal Notices',
+  'school-leaving-certificate': 'School Leaving Certificate',
+  'hostel-form': 'Hostel Form',
+  'club-ngo-membership-card': 'Club/NGO Membership Card',
+  'vehicle-registration-rc': 'Vehicle Registration (RC)',
+  'driving-school-certificate': 'Driving School Certificate',
+  'personal-notes': 'Personal Notes',
+  'other-miscellaneous-document': '🟣 Other Miscellaneous Document',
   
   // Legacy support
   'other': 'Other Document'
