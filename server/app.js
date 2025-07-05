@@ -100,12 +100,23 @@ if (process.env.NODE_ENV === 'production') {
     console.log('Serving React app for route:', req.path);
     console.log('Index path:', indexPath);
     
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        console.error('Error serving React app:', err);
-        res.status(500).send('Error loading the application');
-      }
-    });
+    // Check if the file exists
+    const fs = require('fs');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error('Error serving React app:', err);
+          res.status(500).send('Error loading the application');
+        }
+      });
+    } else {
+      console.error('React build files not found at:', indexPath);
+      res.status(404).json({ 
+        error: 'React app not built',
+        message: 'Please run "npm run build:client" to build the React app',
+        path: indexPath
+      });
+    }
   });
 } else {
   // 404 handler for development
