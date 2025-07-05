@@ -23,7 +23,11 @@ app.use(cors({
       'http://localhost:5002',
       'http://localhost:5003',
       process.env.CORS_ORIGIN,
-      'https://document-verify-frontend.onrender.com'
+      'https://document-verify-frontend.onrender.com',
+      'https://docuverify-backend-8k6i.onrender.com',
+      'https://docuverify-wuh9.onrender.com',
+      'https://docuverify-ai-ml.onrender.com',
+      'https://docuverify-fullstack.onrender.com'
     ].filter(Boolean);
     
     if (!origin) return callback(null, true);
