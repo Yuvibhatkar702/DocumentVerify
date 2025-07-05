@@ -8,6 +8,25 @@ import cv2
 import numpy as np
 import pytesseract
 import logging
+import sys
+
+# Add the parent directory to sys.path to import utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from utils.ml_pipeline import ml_verifier
+    safe_ml_verifier = ml_verifier
+    USE_ADVANCED_ML = True
+except ImportError:
+    try:
+        from utils.simple_verifier import simple_verifier
+        USE_ADVANCED_ML = False
+        print("Using simplified verifier due to missing ML libraries")
+    except ImportError:
+        safe_ml_verifier = None
+        simple_verifier = None
+        USE_ADVANCED_ML = False
+        print("No ML verifier available. Please check your installation.")
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -37,39 +56,353 @@ async def analyze_document(
 
         logger.info(f"Received file: {filename}, document_type: {document_type}")
 
-        # Load and analyze image
-        image = cv2.imread(file_location)
-        if image is None:
-            raise HTTPException(status_code=400, detail="Invalid image file")
-
-        # Perform comprehensive document analysis
-        analysis_result = perform_document_analysis(image, document_type, filename)
-
+        # Choose verifier based on available libraries
+        if USE_ADVANCED_ML:
+            # Extract comprehensive features using advanced ML pipeline
+            features = safe_ml_verifier.extract_comprehensive_features(file_location, document_type)
+            
+            if 'error' in features:
+                raise HTTPException(status_code=500, detail=f"Feature extraction failed: {features['error']}")
+            
+            # Classify document using ensemble ML models
+            classification_result = safe_ml_verifier.classify_document(features)
+            
+            logger.info(f"Advanced ML Analysis - Features: {len(features)}, Confidence: {classification_result.get('confidence', 0)}")
+        else:
+            # Use simplified verifier
+            features = simple_verifier.extract_comprehensive_features(file_location, document_type)
+            
+            if 'error' in features:
+                raise HTTPException(status_code=500, detail=f"Feature extraction failed: {features['error']}")
+            
+            # Classify document using rule-based approach
+            classification_result = simple_verifier.classify_document(features)
+            
+            logger.info(f"Simplified Analysis - Features: {len(features)}, Confidence: {classification_result.get('confidence', 0)}")
+        
+        # Perform legacy analysis for compatibility
+        legacy_analysis = perform_legacy_analysis(file_location, document_type)
+        
+        # Combine results with enhanced logic
+        final_result = combine_enhanced_analysis_results(features, classification_result, legacy_analysis)
+        
         # Clean up uploaded file
         try:
             os.remove(file_location)
         except:
             pass
 
-        logger.info(f"Analysis Result - Valid: {analysis_result['is_valid']}, Confidence: {analysis_result['confidence_score']}")
+        logger.info(f"Analysis Result - Valid: {final_result['is_valid']}, Confidence: {final_result['confidence_score']}")
 
         return JSONResponse({
-            "is_valid": analysis_result["is_valid"],
-            "confidence_score": analysis_result["confidence_score"],
-            "detected_text": analysis_result["detected_text"],
-            "extracted_data": analysis_result["extracted_data"],
-            "anomalies": analysis_result["anomalies"],
-            "processing_time": analysis_result["processing_time"],
-            "ocr_accuracy": analysis_result["ocr_accuracy"],
-            "signature_detected": analysis_result["signature_detected"],
-            "format_validation": analysis_result["format_validation"],
-            "quality_score": analysis_result["quality_score"],
+            "is_valid": final_result["is_valid"],
+            "confidence_score": final_result["confidence_score"],
+            "detected_text": final_result["detected_text"],
+            "extracted_data": final_result["extracted_data"],
+            "anomalies": final_result["anomalies"],
+            "processing_time": final_result["processing_time"],
+            "ocr_accuracy": final_result["ocr_accuracy"],
+            "signature_detected": final_result["signature_detected"],
+            "format_validation": final_result["format_validation"],
+            "quality_score": final_result["quality_score"],
+            "ml_analysis": classification_result,
+            "feature_count": len(features),
+            "ml_method": "advanced_ensemble" if USE_ADVANCED_ML else "simplified",
+            "risk_factors": classification_result.get('risk_factors', []),
+            "authenticity_indicators": classification_result.get('authenticity_indicators', []),
+            "detailed_analysis": classification_result.get('detailed_analysis', ''),
             "timestamp": datetime.now().isoformat()
         })
 
     except Exception as e:
         logger.error(f"Error analyzing document: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Document analysis failed: {str(e)}")
+
+def combine_enhanced_analysis_results(features, classification_result, legacy_analysis):
+    """
+    Enhanced combination of ML analysis results with legacy analysis
+    """
+    try:
+        start_time = datetime.now()
+        
+        # Get ML confidence and authenticity
+        ml_confidence = classification_result.get('confidence', 0.1)
+        ml_is_authentic = classification_result.get('is_authentic', False)
+        ml_raw_score = classification_result.get('raw_score', 0.1)
+        
+        # Get legacy analysis
+        legacy_confidence = legacy_analysis.get('confidence_score', 0.0)
+        legacy_valid = legacy_analysis.get('is_valid', False)
+        
+        # Enhanced combined confidence calculation
+        # If ML analysis is very confident (>0.8), give it more weight
+        if ml_confidence > 0.8:
+            combined_confidence = ml_confidence * 0.8 + legacy_confidence * 0.2
+        else:
+            combined_confidence = ml_confidence * 0.6 + legacy_confidence * 0.4
+        
+        # Apply critical issue penalties
+        critical_issues = classification_result.get('penalty_analysis', {}).get('critical_issues', 0)
+        if critical_issues > 0:
+            combined_confidence *= 0.3  # Severe penalty for critical issues
+        
+        # Document validity logic (stricter criteria)
+        is_valid = (
+            ml_is_authentic and 
+            legacy_valid and 
+            combined_confidence >= 0.7 and
+            critical_issues == 0
+        )
+        
+        # Special case: If ML is very confident and finds issues, override
+        if ml_confidence > 0.9 and not ml_is_authentic:
+            is_valid = False
+            combined_confidence = min(combined_confidence, 0.3)
+        
+        # Collect all anomalies
+        anomalies = legacy_analysis.get('anomalies', [])
+        
+        # Add ML-specific anomalies
+        if not ml_is_authentic:
+            anomalies.append("Advanced ML models detected document as fake")
+        
+        # Add feature-based anomalies
+        if features.get('suspicious_text_detected', False):
+            anomalies.append("Suspicious text content detected (fake, sample, etc.)")
+        
+        if features.get('editing_software_detected', False):
+            anomalies.append("Document created/edited with image editing software")
+        
+        if features.get('multiple_faces_detected', False):
+            anomalies.append("Multiple faces detected in ID document")
+        
+        if features.get('face_count_suspicious', False):
+            anomalies.append("Too many faces detected for document type")
+        
+        if features.get('logo_tampering_detected', False):
+            anomalies.append("Logo/seal tampering detected")
+        
+        if features.get('copy_paste_score', 0) > 0.7:
+            anomalies.append("High copy-paste similarity detected")
+        
+        if not features.get('face_likely_real', True):
+            anomalies.append("Face appears to be artificially generated or manipulated")
+        
+        if features.get('deepface_analysis_successful', False):
+            if features.get('deepface_emotion_confidence', 0) < 0.3:
+                anomalies.append("Unnatural facial expression detected")
+        
+        if not features.get('expected_template_found', False):
+            anomalies.append("Expected government logos/seals not found")
+        
+        if features.get('qr_codes_detected', False) and features.get('qr_validation_rate', 0) < 0.5:
+            anomalies.append("QR code validation failed")
+        
+        # Quality-based anomalies
+        if features.get('ocr_confidence_mean', 0) < 30:
+            anomalies.append("Very low OCR confidence - possible image quality issues")
+        
+        if features.get('face_quality_mean', 0) < 0.3:
+            anomalies.append("Poor face image quality")
+        
+        # Add penalty analysis
+        penalty_analysis = classification_result.get('penalty_analysis', {})
+        if penalty_analysis.get('penalty_count', 0) > 0:
+            anomalies.append(f"Document received {penalty_analysis['penalty_count']} penalty points")
+        
+        # Calculate enhanced quality score
+        quality_score = calculate_enhanced_quality_score(features, classification_result)
+        
+        # Extract OCR information
+        detected_text = features.get('extracted_text', '')
+        ocr_accuracy = features.get('ocr_confidence_mean', 0) / 100.0
+        
+        # Enhanced extracted data
+        extracted_data = extract_enhanced_data(features, classification_result)
+        
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        return {
+            "is_valid": is_valid,
+            "confidence_score": combined_confidence,
+            "detected_text": detected_text,
+            "extracted_data": extracted_data,
+            "anomalies": anomalies,
+            "processing_time": processing_time,
+            "ocr_accuracy": ocr_accuracy,
+            "signature_detected": features.get('signature_detected', False),
+            "format_validation": legacy_analysis.get('format_validation', {}),
+            "quality_score": quality_score,
+            "critical_issues": critical_issues,
+            "ml_raw_score": ml_raw_score,
+            "penalty_count": penalty_analysis.get('penalty_count', 0)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error combining analysis results: {str(e)}")
+        # Return safe defaults
+        return {
+            "is_valid": False,
+            "confidence_score": 0.1,
+            "detected_text": "",
+            "extracted_data": {},
+            "anomalies": [f"Analysis combination failed: {str(e)}"],
+            "processing_time": 0.0,
+            "ocr_accuracy": 0.0,
+            "signature_detected": False,
+            "format_validation": {},
+            "quality_score": 0.1,
+            "critical_issues": 1,
+            "ml_raw_score": 0.1,
+            "penalty_count": 1
+        }
+
+def calculate_enhanced_quality_score(features, classification_result):
+    """Calculate enhanced quality score based on multiple factors"""
+    try:
+        quality_factors = []
+        
+        # Image quality
+        sharpness = features.get('sharpness', 0)
+        quality_factors.append(min(sharpness / 200.0, 1.0))
+        
+        contrast = features.get('contrast', 0)
+        quality_factors.append(min(contrast / 100.0, 1.0))
+        
+        # OCR quality
+        ocr_conf = features.get('ocr_confidence_mean', 0)
+        quality_factors.append(ocr_conf / 100.0)
+        
+        # Face quality (if applicable)
+        if features.get('face_detected', False):
+            face_quality = features.get('face_quality_mean', 0)
+            quality_factors.append(face_quality)
+        
+        # QR code quality (if applicable)
+        if features.get('qr_codes_detected', False):
+            qr_quality = features.get('qr_quality_mean', 0)
+            quality_factors.append(qr_quality)
+        
+        # Template matching quality
+        template_score = features.get('template_match_score', 0)
+        quality_factors.append(template_score)
+        
+        # Overall quality
+        base_quality = np.mean(quality_factors) if quality_factors else 0.5
+        
+        # Apply penalties for issues
+        if features.get('noise_level', 0) > 20:
+            base_quality *= 0.8
+        
+        if features.get('editing_software_detected', False):
+            base_quality *= 0.6
+        
+        if features.get('logo_tampering_detected', False):
+            base_quality *= 0.5
+        
+        return max(0.01, min(base_quality, 1.0))
+        
+    except Exception as e:
+        logger.error(f"Quality score calculation error: {e}")
+        return 0.5
+
+def extract_enhanced_data(features, classification_result):
+    """Extract enhanced data from features"""
+    try:
+        extracted_data = {}
+        
+        # Personal information (if detected)
+        if features.get('aadhaar_number_detected', False):
+            extracted_data['aadhaar_detected'] = True
+        
+        if features.get('pan_number_detected', False):
+            extracted_data['pan_detected'] = True
+        
+        if features.get('passport_number_detected', False):
+            extracted_data['passport_detected'] = True
+        
+        # Face information
+        if features.get('face_detected', False):
+            extracted_data['face_info'] = {
+                'count': features.get('face_count', 0),
+                'quality': features.get('face_quality_mean', 0),
+                'well_positioned': features.get('face_well_positioned', False),
+                'likely_real': features.get('face_likely_real', False)
+            }
+        
+        # QR code information
+        if features.get('qr_codes_detected', False):
+            extracted_data['qr_info'] = {
+                'count': features.get('qr_code_count', 0),
+                'quality': features.get('qr_quality_mean', 0),
+                'aadhaar_pattern': features.get('aadhaar_qr_pattern', False),
+                'validation_rate': features.get('qr_validation_rate', 0)
+            }
+        
+        # Document metadata
+        extracted_data['metadata'] = {
+            'file_size': features.get('file_size', 0),
+            'dimensions': {
+                'width': features.get('image_width', 0),
+                'height': features.get('image_height', 0)
+            },
+            'editing_software': features.get('editing_software_detected', False),
+            'camera_info': {
+                'make': features.get('camera_make', 'Unknown'),
+                'model': features.get('camera_model', 'Unknown')
+            }
+        }
+        
+        # Quality metrics
+        extracted_data['quality_metrics'] = {
+            'sharpness': features.get('sharpness', 0),
+            'contrast': features.get('contrast', 0),
+            'brightness': features.get('brightness', 0),
+            'noise_level': features.get('noise_level', 0)
+        }
+        
+        # ML analysis summary
+        extracted_data['ml_summary'] = {
+            'ensemble_score': classification_result.get('raw_score', 0),
+            'anomaly_detected': classification_result.get('is_anomaly', False),
+            'critical_issues': classification_result.get('penalty_analysis', {}).get('critical_issues', 0)
+        }
+        
+        return extracted_data
+        
+    except Exception as e:
+        logger.error(f"Enhanced data extraction error: {e}")
+        return {}
+
+def combine_analysis_results(features, classification_result, legacy_analysis):
+    """Legacy function for backward compatibility"""
+    return combine_enhanced_analysis_results(features, classification_result, legacy_analysis)
+
+def perform_legacy_analysis(file_location, document_type):
+    """
+    Perform legacy analysis for backward compatibility
+    """
+    try:
+        # Load and analyze image
+        image = cv2.imread(file_location)
+        if image is None:
+            return {
+                "is_valid": False,
+                "confidence_score": 0.0,
+                "anomalies": ["Could not load image file"]
+            }
+
+        # Perform simplified legacy analysis
+        analysis_result = perform_document_analysis(image, document_type, os.path.basename(file_location))
+        
+        return analysis_result
+    except Exception as e:
+        logger.error(f"Legacy analysis error: {e}")
+        return {
+            "is_valid": False,
+            "confidence_score": 0.0,
+            "anomalies": [f"Legacy analysis failed: {str(e)}"]
+        }
 
 def perform_document_analysis(image, document_type, filename):
     """

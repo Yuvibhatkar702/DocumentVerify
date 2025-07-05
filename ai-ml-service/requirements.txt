@@ -1,3 +1,4 @@
+
 # Core FastAPI dependencies
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
@@ -8,12 +9,32 @@ opencv-python-headless>=4.9.0
 numpy>=1.26.0
 Pillow>=10.2.0
 
-# OCR
+# OCR and Text Processing
 pytesseract>=0.3.10
+easyocr>=1.7.0
+
+# QR Code and Barcode Processing
+pyzbar>=0.1.9
+qrcode>=7.4.2
 
 # Machine Learning (compatible with Python 3.13)
 scikit-learn>=1.4.0
 scikit-image>=0.22.0
+xgboost>=1.7.6
+joblib>=1.3.2
+
+# Deep Learning and Computer Vision (Python 3.13 compatible)
+# tensorflow>=2.15.0  # Not yet compatible with Python 3.13
+# keras>=2.15.0      # Depends on tensorflow
+torch>=2.0.0  # Successfully installed
+torchvision>=0.15.0  # Successfully installed
+# deepface>=0.0.79   # Depends on tensorflow
+# face-recognition>=1.3.0  # Depends on dlib which has build issues
+# dlib>=19.24.2      # Build issues on Python 3.13
+
+# Image Forensics and Analysis
+exifread>=3.0.0
+imageio>=2.31.1
 
 # Utilities
 requests>=2.31.0
@@ -30,7 +51,30 @@ passlib[bcrypt]>=1.7.4
 # Async support
 httpx>=0.25.0
 
-# For future deep learning models (install separately if needed)
-# tensorflow>=2.15.0
-# torch>=2.1.0
-# torchvision>=0.16.0
+# Magic number detection
+# python-magic>=0.4.27  # May have compatibility issues on Windows
+
+# Additional ML and Analysis Libraries
+scipy>=1.11.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+imutils>=0.5.4
+tqdm>=4.65.0
+
+# Enhanced ML Models
+lightgbm>=4.0.0
+catboost>=1.2.0
+
+# Computer Vision Enhancements (already included above)
+# torch>=2.0.0       # Already included
+# torchvision>=0.15.0 # Already included
+
+# Optimization
+optuna>=3.2.0
+
+# Testing and Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Security and Hashing
+cryptography>=41.0.0
