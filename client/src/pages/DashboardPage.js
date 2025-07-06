@@ -374,6 +374,13 @@ const Dashboard = () => {
               </button>
               
               <button
+                onClick={() => navigate('/profile')}
+                className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 font-medium py-2 px-4 rounded-lg border border-purple-500/30 transition-all duration-200 text-sm"
+              >
+                ⚙️
+              </button>
+              
+              <button
                 onClick={handleLogout}
                 className="bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium py-2 px-4 rounded-lg border border-red-500/30 transition-all duration-200 text-sm"
               >
@@ -395,6 +402,17 @@ const Dashboard = () => {
                 >
                   <span>🔄</span>
                   <span>Refresh Documents</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    navigate('/profile');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="bg-purple-500/20 text-purple-400 font-medium py-2 px-4 rounded-lg text-sm flex items-center space-x-2"
+                >
+                  <span>⚙️</span>
+                  <span>Profile & Settings</span>
                 </button>
                 
                 <button

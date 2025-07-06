@@ -9,7 +9,10 @@ const {
   googleAuthSuccess,
   oauthFailure,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  updateProfile,
+  changePassword,
+  generateApiKey
 } = require('../controllers/authController');
 const auth = require('../middleware/authMiddleware');
 
@@ -117,5 +120,10 @@ router.get('/google/callback', (req, res, next) => {
 
 // OAuth Failure Route
 router.get('/failure', oauthFailure);
+
+// Profile management routes
+router.put('/profile', auth, updateProfile);
+router.put('/change-password', auth, changePassword);
+router.post('/generate-api-key', auth, generateApiKey);
 
 module.exports = router;

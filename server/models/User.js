@@ -55,6 +55,11 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String
   },
+  apiKey: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   isActive: {
     type: Boolean,
     default: true

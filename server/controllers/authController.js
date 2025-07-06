@@ -284,6 +284,156 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Update user profile
+const updateProfile = async (req, res) => {
+  try {
+    const { name, email, mobileNumber, collegeName, country } = req.body;
+    const userId = req.user.id;
+
+    // Check if email is being changed and if it's already taken
+    if (email && email !== req.user.email) {
+      const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is already taken by another user'
+        });
+      }
+    }
+
+    // Update user profile
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        name,
+        email,
+        mobileNumber,
+        collegeName,
+        country
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        mobileNumber: updatedUser.mobileNumber,
+        collegeName: updatedUser.collegeName,
+        country: updatedUser.country
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating profile'
+    });
+  }
+};
+
+// Change user password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    // Find user and include password
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user has a password (OAuth users might not have one)
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change password for OAuth accounts'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while changing password'
+    });
+  }
+};
+
+// Generate API key
+const generateApiKey = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user has permission for API access
+    if (!['admin', 'general'].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'API access not available for your role'
+      });
+    }
+
+    // Generate API key (you might want to use a more sophisticated method)
+    const apiKey = `dvs_${Buffer.from(`${userId}_${Date.now()}`).toString('base64')}`;
+
+    // Update user with API key
+    user.apiKey = apiKey;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'API key generated successfully',
+      apiKey
+    });
+  } catch (error) {
+    console.error('Generate API key error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while generating API key'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -292,5 +442,8 @@ module.exports = {
   googleAuthSuccess,
   oauthFailure,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  updateProfile,
+  changePassword,
+  generateApiKey
 };

@@ -11,6 +11,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AuthSuccess from './components/AuthSuccess';
 import DashboardPage from './pages/DashboardPage';
 import DocumentUploadPage from './pages/DocumentUploadPage';
+import ProfileSettingsPage from './pages/ProfileSettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DebugRegister from './components/DebugRegister';
 
@@ -43,6 +44,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <DocumentUploadPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <ProfileSettingsPage />
                   </ProtectedRoute>
                 } 
               />
