@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
+const emailService = require('../services/emailService');
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -232,13 +233,26 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
     
-    // In production, send email with reset link
-    // For now, just return success
-    res.json({
-      success: true,
-      message: 'Password reset instructions sent to your email.',
-      resetToken // Remove this in production
-    });
+    // Send password reset email
+    try {
+      await emailService.sendPasswordResetEmail(email, resetToken);
+      console.log('Password reset email sent to:', email);
+      
+      res.json({
+        success: true,
+        message: 'Password reset instructions have been sent to your email address.'
+      });
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      
+      // Even if email fails, we still return success to avoid revealing if email exists
+      // But log the error for debugging
+      res.json({
+        success: true,
+        message: 'If an account with this email exists, password reset instructions have been sent.',
+        warning: 'Email delivery may be delayed'
+      });
+    }
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({
