@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
+const crypto = require('crypto');
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -26,7 +27,17 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, password } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      role, 
+      mobileNumber, 
+      collegeName, 
+      country, 
+      referralCode, 
+      termsAccepted 
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -39,8 +50,18 @@ const register = async (req, res) => {
     }
 
     // Create new user
-    console.log('Creating new user:', { name, email });
-    const user = new User({ name, email, password });
+    console.log('Creating new user:', { name, email, role });
+    const user = new User({ 
+      name, 
+      email, 
+      password, 
+      role: role || 'general',
+      mobileNumber,
+      collegeName,
+      country,
+      referralCode,
+      termsAccepted: termsAccepted || true
+    });
     await user.save();
     console.log('User created successfully:', user._id);
 
@@ -174,9 +195,102 @@ const logout = (req, res) => {
   });
 };
 
+// Google OAuth Success
+const googleAuthSuccess = async (req, res) => {
+  try {
+    const token = generateToken(req.user._id);
+    
+    // Redirect to frontend with token
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/success?token=${token}`);
+  } catch (error) {
+    console.error('Google auth success error:', error);
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+  }
+};
+
+// OAuth Failure
+const oauthFailure = (req, res) => {
+  res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/login?error=oauth_failed`);
+};
+
+// Forgot Password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address.'
+      });
+    }
+    
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+    
+    // In production, send email with reset link
+    // For now, just return success
+    res.json({
+      success: true,
+      message: 'Password reset instructions sent to your email.',
+      resetToken // Remove this in production
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong. Please try again.'
+    });
+  }
+};
+
+// Reset Password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token.'
+      });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Password reset successful. You can now log in with your new password.'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong. Please try again.'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getCurrentUser,
-  logout
+  logout,
+  googleAuthSuccess,
+  oauthFailure,
+  forgotPassword,
+  resetPassword
 };

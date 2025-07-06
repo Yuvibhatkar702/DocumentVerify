@@ -5,9 +5,14 @@ import { CategoryProvider } from './contexts/CategoryContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import EnhancedRegisterPage from './pages/EnhancedRegisterPage';
+import EnhancedLoginPage from './pages/EnhancedLoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import AuthSuccess from './components/AuthSuccess';
 import DashboardPage from './pages/DashboardPage';
 import DocumentUploadPage from './pages/DocumentUploadPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import DebugRegister from './components/DebugRegister';
 
 function App() {
   return (
@@ -17,8 +22,14 @@ function App() {
           <div className="App">
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/login" element={<EnhancedLoginPage />} />
+              <Route path="/register" element={<EnhancedRegisterPage />} />
+              <Route path="/debug-register" element={<DebugRegister />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/auth/success" element={<AuthSuccess />} />
+              {/* Legacy routes */}
+              <Route path="/old-login" element={<LoginPage />} />
+              <Route path="/old-register" element={<RegisterPage />} />
               <Route 
                 path="/dashboard" 
                 element={

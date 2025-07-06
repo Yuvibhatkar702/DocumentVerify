@@ -16,19 +16,60 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      return !this.googleId;
+    },
     minlength: 6
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
+    enum: ['student', 'general', 'admin'],
+    default: 'general'
+  },
+  mobileNumber: {
+    type: String,
+    trim: true
+  },
+  collegeName: {
+    type: String,
+    trim: true
+  },
+  country: {
+    type: String,
+    trim: true
+  },
+  referralCode: {
+    type: String,
+    trim: true
+  },
+  termsAccepted: {
+    type: Boolean,
+    required: true,
+    default: true
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  avatar: {
+    type: String
   },
   isActive: {
     type: Boolean,
     default: true
   },
   lastLogin: {
+    type: Date
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  resetPasswordToken: {
+    type: String
+  },
+  resetPasswordExpires: {
     type: Date
   }
 }, {

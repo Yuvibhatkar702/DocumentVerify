@@ -7,13 +7,33 @@ const api = axios.create({
 });
 
 export const login = async (email, password) => {
-  const response = await api.post('/auth/login', { email, password });
-  return response.data;
+  console.log('AuthService: Sending login request to:', API_BASE_URL + '/auth/login');
+  console.log('AuthService: Login data:', { email, password: '***' });
+  
+  try {
+    const response = await api.post('/auth/login', { email, password });
+    console.log('AuthService: Login response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('AuthService: Login error:', error);
+    console.error('AuthService: Error response:', error.response?.data);
+    throw error;
+  }
 };
 
-export const register = async (name, email, password) => {
-  const response = await api.post('/auth/register', { name, email, password });
-  return response.data;
+export const register = async (userData) => {
+  console.log('AuthService: Sending registration request to:', API_BASE_URL + '/auth/register');
+  console.log('AuthService: User data:', userData);
+  
+  try {
+    const response = await api.post('/auth/register', userData);
+    console.log('AuthService: Registration response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('AuthService: Registration error:', error);
+    console.error('AuthService: Error response:', error.response?.data);
+    throw error;
+  }
 };
 
 export const getCurrentUser = async (token) => {

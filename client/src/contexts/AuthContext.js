@@ -45,8 +45,23 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (...args) => {
     try {
+      // Handle both object format {email, password} and separate parameters
+      let email, password;
+      
+      if (args.length === 1 && typeof args[0] === 'object') {
+        // Object format: login({email, password})
+        email = args[0].email;
+        password = args[0].password;
+      } else {
+        // Separate parameters: login(email, password)
+        email = args[0];
+        password = args[1];
+      }
+      
+      console.log('AuthContext: Login attempt for:', email);
+      
       const response = await apiLogin(email, password);
       const { token, user: userData } = response;
       
@@ -55,6 +70,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       
+      console.log('AuthContext: Login successful');
       return response;
     } catch (error) {
       console.error('Login error:', error);
@@ -74,15 +90,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (userData) => {
     try {
-      const response = await apiRegister(name, email, password);
-      const { token, user: userData } = response;
+      const response = await apiRegister(userData);
+      const { token, user: userInfo } = response;
       
       localStorage.setItem('token', token);
-      localStorage.setItem('userId', userData.id);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      localStorage.setItem('userId', userInfo.id);
+      localStorage.setItem('user', JSON.stringify(userInfo));
+      setUser(userInfo);
       
       return response;
     } catch (error) {

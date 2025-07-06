@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const session = require('express-session');
+const passport = require('./config/passport');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -13,6 +15,21 @@ const userRoutes = require('./routes/userRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+
+// Session configuration (required for passport)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // CORS configuration - Must come before other middleware
 app.use(cors({
