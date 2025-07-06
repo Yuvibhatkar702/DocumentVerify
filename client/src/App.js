@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage';
 import EnhancedRegisterPage from './pages/EnhancedRegisterPage';
 import EnhancedLoginPage from './pages/EnhancedLoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import AuthSuccess from './components/AuthSuccess';
 import DashboardPage from './pages/DashboardPage';
 import DocumentUploadPage from './pages/DocumentUploadPage';
@@ -27,6 +28,7 @@ function App() {
               <Route path="/register" element={<EnhancedRegisterPage />} />
               <Route path="/debug-register" element={<DebugRegister />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/auth/success" element={<AuthSuccess />} />
               {/* Legacy routes */}
               <Route path="/old-login" element={<LoginPage />} />

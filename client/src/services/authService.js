@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:50011/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -41,6 +41,43 @@ export const getCurrentUser = async (token) => {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
+};
+
+export const forgotPassword = async (email) => {
+  console.log('AuthService: Sending forgot password request to:', API_BASE_URL + '/auth/forgot-password');
+  console.log('AuthService: Email:', email);
+  
+  try {
+    const response = await api.post('/auth/forgot-password', { email });
+    console.log('AuthService: Forgot password response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('AuthService: Forgot password error:', error);
+    console.error('AuthService: Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+export const resetPassword = async (token, newPassword) => {
+  console.log('AuthService: Sending reset password request to:', API_BASE_URL + '/auth/reset-password');
+  
+  try {
+    const response = await api.post('/auth/reset-password', { token, newPassword });
+    console.log('AuthService: Reset password response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('AuthService: Reset password error:', error);
+    console.error('AuthService: Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+export const authService = {
+  login,
+  register,
+  getCurrentUser,
+  forgotPassword,
+  resetPassword
 };
 
 export default api;
