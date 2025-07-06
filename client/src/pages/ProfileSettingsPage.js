@@ -80,7 +80,12 @@ const ProfileSettingsPage = () => {
     
     // Load theme preference
     const savedTheme = localStorage.getItem('theme');
-    setDarkMode(savedTheme === 'dark');
+    const isDark = savedTheme === 'dark';
+    setDarkMode(isDark);
+    
+    // Apply theme to document
+    document.documentElement.classList.toggle('dark', isDark);
+    document.body.classList.toggle('dark', isDark);
   }, [user]);
 
   // Auto-clear messages after some time
@@ -260,10 +265,28 @@ const ProfileSettingsPage = () => {
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    localStorage.setItem('theme', !darkMode ? 'dark' : 'light');
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    
     // Apply theme to document
-    document.documentElement.classList.toggle('dark', !darkMode);
+    document.documentElement.classList.toggle('dark', newDarkMode);
+    
+    // Apply theme to body for immediate visual feedback
+    document.body.classList.toggle('dark', newDarkMode);
+    
+    // Show success message
+    setSuccess(`Switched to ${newDarkMode ? 'dark' : 'light'} mode`);
+  };
+
+  // Helper function for input styling
+  const getInputStyles = (disabled = false) => {
+    const baseStyles = "w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors";
+    const themeStyles = darkMode 
+      ? "bg-white/10 border-white/20 text-white placeholder-gray-400 focus:ring-purple-500" 
+      : "bg-white border-gray-300 text-gray-800 placeholder-gray-500 focus:ring-indigo-500";
+    const disabledStyles = disabled ? "opacity-50" : "";
+    return `${baseStyles} ${themeStyles} ${disabledStyles}`;
   };
 
   // Generate API key
@@ -317,19 +340,31 @@ const ProfileSettingsPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+    <div className={`min-h-screen p-4 transition-all duration-300 ${
+      darkMode 
+        ? 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900' 
+        : 'bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-200'
+    }`}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20"
+          className={`backdrop-blur-lg rounded-2xl p-6 mb-6 border transition-all duration-300 ${
+            darkMode 
+              ? 'bg-white/10 border-white/20 text-white' 
+              : 'bg-white/80 border-gray-200 text-gray-800'
+          }`}
         >
           <div className="flex items-center gap-3">
-            <FaCog className="text-white text-2xl" />
-            <h1 className="text-3xl font-bold text-white">Profile & Settings</h1>
+            <FaCog className={`text-2xl ${darkMode ? 'text-white' : 'text-indigo-600'}`} />
+            <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              Profile & Settings
+            </h1>
           </div>
-          <p className="text-gray-300 mt-2">Manage your account preferences and settings</p>
+          <p className={`mt-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            Manage your account preferences and settings
+          </p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -337,7 +372,11 @@ const ProfileSettingsPage = () => {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 h-fit"
+            className={`backdrop-blur-lg rounded-2xl p-6 border h-fit transition-all duration-300 ${
+              darkMode 
+                ? 'bg-white/10 border-white/20' 
+                : 'bg-white/80 border-gray-200'
+            }`}
           >
             <nav className="space-y-2">
               {tabs.map((tab) => (
@@ -346,8 +385,12 @@ const ProfileSettingsPage = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-purple-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                      ? darkMode 
+                        ? 'bg-purple-600 text-white shadow-lg'
+                        : 'bg-indigo-600 text-white shadow-lg'
+                      : darkMode
+                        ? 'text-gray-300 hover:bg-white/10 hover:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
                   }`}
                 >
                   <tab.icon className="text-lg" />
@@ -361,7 +404,11 @@ const ProfileSettingsPage = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-3 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
+            className={`lg:col-span-3 backdrop-blur-lg rounded-2xl p-6 border transition-all duration-300 ${
+              darkMode 
+                ? 'bg-white/10 border-white/20' 
+                : 'bg-white/80 border-gray-200'
+            }`}
           >
             {/* Success/Error Messages */}
             {success && (
@@ -401,10 +448,16 @@ const ProfileSettingsPage = () => {
             {activeTab === 'profile' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Edit Profile</h2>
+                  <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Edit Profile
+                </h2>
                   <button
                     onClick={() => setIsEditingProfile(!isEditingProfile)}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      darkMode 
+                        ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
                   >
                     {isEditingProfile ? <FaTimes /> : <FaEdit />}
                     {isEditingProfile ? 'Cancel' : 'Edit'}
@@ -413,7 +466,9 @@ const ProfileSettingsPage = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       <FaUser className="inline mr-2" />
                       Full Name
                     </label>
@@ -423,12 +478,14 @@ const ProfileSettingsPage = () => {
                       value={profileData.name}
                       onChange={handleProfileChange}
                       disabled={!isEditingProfile}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                      className={getInputStyles(!isEditingProfile)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       <FaEnvelope className="inline mr-2" />
                       Email Address
                     </label>
@@ -438,12 +495,14 @@ const ProfileSettingsPage = () => {
                       value={profileData.email}
                       onChange={handleProfileChange}
                       disabled={!isEditingProfile}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                      className={getInputStyles(!isEditingProfile)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       <FaPhone className="inline mr-2" />
                       Mobile Number
                     </label>
@@ -453,12 +512,14 @@ const ProfileSettingsPage = () => {
                       value={profileData.mobileNumber}
                       onChange={handleProfileChange}
                       disabled={!isEditingProfile}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                      className={getInputStyles(!isEditingProfile)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       <FaUniversity className="inline mr-2" />
                       College/Institution
                     </label>
@@ -468,12 +529,14 @@ const ProfileSettingsPage = () => {
                       value={profileData.collegeName}
                       onChange={handleProfileChange}
                       disabled={!isEditingProfile}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                      className={getInputStyles(!isEditingProfile)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       <FaGlobe className="inline mr-2" />
                       Country
                     </label>
@@ -483,12 +546,14 @@ const ProfileSettingsPage = () => {
                       value={profileData.country}
                       onChange={handleProfileChange}
                       disabled={!isEditingProfile}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                      className={getInputStyles(!isEditingProfile)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       <FaUserTag className="inline mr-2" />
                       Role
                     </label>
@@ -496,7 +561,7 @@ const ProfileSettingsPage = () => {
                       type="text"
                       value={profileData.role}
                       disabled
-                      className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-gray-400 capitalize"
+                      className={getInputStyles(true)}
                     />
                   </div>
                 </div>

@@ -346,11 +346,22 @@ const updateProfile = async (req, res) => {
 // Change user password
 const changePassword = async (req, res) => {
   try {
+    console.log('Password change request body:', req.body);
+    console.log('Password change request headers:', req.headers);
+    
     const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+    
     const userId = req.user.id;
 
     // Find user and include password
-    const user = await User.findById(userId).select('+password');
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -406,7 +417,7 @@ const generateApiKey = async (req, res) => {
     }
 
     // Check if user has permission for API access
-    if (!['admin', 'general'].includes(user.role)) {
+    if (!['admin', 'general', 'user'].includes(user.role)) {
       return res.status(403).json({
         success: false,
         message: 'API access not available for your role'
