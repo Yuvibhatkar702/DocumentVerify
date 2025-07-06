@@ -141,7 +141,7 @@ const EnhancedRegisterPage = () => {
     setError('Google OAuth setup is in progress. Please use email/password registration for now.');
     
     // Uncomment the line below once you've configured Google OAuth properly
-    // const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50011';
+    // const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     // window.location.href = `${apiUrl}/api/auth/google`;
   };
 

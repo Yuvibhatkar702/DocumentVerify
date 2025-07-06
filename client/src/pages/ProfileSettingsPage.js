@@ -99,7 +99,7 @@ const ProfileSettingsPage = () => {
   // Test server connection
   const testConnection = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:50011'}/api/auth/me`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -166,7 +166,7 @@ const ProfileSettingsPage = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:50011'}/api/auth/profile`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +228,7 @@ const ProfileSettingsPage = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:50011'}/api/auth/change-password`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -301,7 +301,7 @@ const ProfileSettingsPage = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:50011'}/api/auth/generate-api-key`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/generate-api-key`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
