@@ -167,25 +167,24 @@ const Dashboard = () => {
   };
 
   // Filter and sort documents
+  // DEBUG: Show all documents regardless of filter for troubleshooting
   const getFilteredAndSortedDocuments = () => {
     let filteredDocs = [...documents];
-    
-    // Apply filter
-    if (documentFilter !== 'all') {
-      filteredDocs = filteredDocs.filter(doc => {
-        switch (documentFilter) {
-          case 'verified':
-            return doc.status === 'verified';
-          case 'pending':
-            return doc.status === 'processing' || doc.status === 'needs_review';
-          case 'failed':
-            return doc.status === 'rejected' || doc.status === 'failed';
-          default:
-            return true;
-        }
-      });
-    }
-    
+    // Remove filter for debugging
+    // if (documentFilter !== 'all') {
+    //   filteredDocs = filteredDocs.filter(doc => {
+    //     switch (documentFilter) {
+    //       case 'verified':
+    //         return doc.status === 'verified';
+    //       case 'pending':
+    //         return doc.status === 'processing' || doc.status === 'needs_review';
+    //       case 'failed':
+    //         return doc.status === 'rejected' || doc.status === 'failed';
+    //       default:
+    //         return true;
+    //     }
+    //   });
+    // }
     // Apply sorting
     filteredDocs.sort((a, b) => {
       switch (documentSort) {
@@ -198,7 +197,6 @@ const Dashboard = () => {
           return new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt);
       }
     });
-    
     return filteredDocs;
   };
 
