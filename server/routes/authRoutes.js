@@ -33,7 +33,7 @@ const registerValidation = [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
   body('role')
     .optional()
-    .isIn(['student', 'general', 'admin'])
+    .isIn(['student', 'general', 'admin', 'user'])
     .withMessage('Invalid role selected'),
   body('mobileNumber')
     .optional()
@@ -101,6 +101,9 @@ router.post('/reset-password', resetPasswordValidation, resetPassword);
 router.get('/google', (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/login?error=oauth_not_configured`);
+  }
+  if (process.env.GOOGLE_CLIENT_ID === 'your_google_client_id_here') {
+    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/login?error=invalid_client`);
   }
   passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
 });

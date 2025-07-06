@@ -33,6 +33,9 @@ const EnhancedLoginPage = () => {
         case 'oauth_not_configured':
           setError('Google OAuth is not configured. Please use email/password login or contact support.');
           break;
+        case 'invalid_client':
+          setError('Google OAuth is not properly configured. Please use email/password login for now.');
+          break;
         case 'invalid_token':
           setError('Invalid authentication token. Please try again.');
           break;
@@ -87,9 +90,12 @@ const EnhancedLoginPage = () => {
   };
 
   const handleGoogleLogin = () => {
-    // Check if Google OAuth is properly configured
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50011';
-    window.location.href = `${apiUrl}/api/auth/google`;
+    // Show helpful message instead of redirecting to broken OAuth
+    setError('Google OAuth setup is in progress. Please use email/password login for now.');
+    
+    // Uncomment the line below once you've configured Google OAuth properly
+    // const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50011';
+    // window.location.href = `${apiUrl}/api/auth/google`;
   };
 
   return (
