@@ -86,7 +86,6 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      
       let documentsData = [];
 
       // Try to get real documents from API first
@@ -94,6 +93,7 @@ const Dashboard = () => {
         const token = localStorage.getItem('token');
         if (token) {
           const response = await getDocuments();
+          console.log('[Dashboard] getDocuments() API response:', response);
           if (response && response.success && response.data) {
             documentsData = response.data;
           } else if (response && Array.isArray(response)) {
@@ -101,7 +101,7 @@ const Dashboard = () => {
           }
         }
       } catch (fetchError) {
-        console.log('API fetch error:', fetchError.message);
+        console.log('[Dashboard] API fetch error:', fetchError.message);
         // If API fails, check for locally stored documents for this user
         const userId = user?.id || localStorage.getItem('userId');
         if (userId) {
@@ -114,9 +114,10 @@ const Dashboard = () => {
       if (documentsData.length > 0) {
         documentsData.sort((a, b) => new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt));
       }
-      
+
+      console.log('[Dashboard] Final documentsData to set:', documentsData);
       setDocuments(documentsData);
-      
+
       // Calculate stats based on actual documents
       const stats = documentsData.reduce((acc, doc) => {
         acc.total++;
@@ -125,10 +126,10 @@ const Dashboard = () => {
         else acc.failed++;
         return acc;
       }, { total: 0, verified: 0, pending: 0, failed: 0 });
-      
+
       setStats(stats);
     } catch (error) {
-      console.error('Error in fetchDocuments:', error);
+      console.error('[Dashboard] Error in fetchDocuments:', error);
       setError('Failed to load documents');
     } finally {
       setLoading(false);
@@ -235,10 +236,12 @@ const Dashboard = () => {
             <span className="text-base flex-shrink-0">{getStatusIcon(document.status)}</span>
             <div className="min-w-0 flex-1">
               <h3 className="font-medium text-white text-xs truncate">
-                {document.originalName || document.fileName || 'Document'}
+                {document.subType || document.originalName || document.fileName || 'Document'}
               </h3>
               <p className="text-xs text-gray-400 truncate">
-                {document.documentType?.replace('-', ' ').toUpperCase() || 'Unknown'}
+                {document.subType
+                  ? document.documentType?.replace('-', ' ').toUpperCase() + ' - ' + document.subType
+                  : document.documentType?.replace('-', ' ').toUpperCase() || 'Unknown'}
               </p>
             </div>
           </div>

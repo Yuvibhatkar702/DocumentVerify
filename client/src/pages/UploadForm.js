@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom';
 const UploadForm = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [documentType, setDocumentType] = useState('');
+  const [documentType, setDocumentType] = useState(''); // backend value
+  const [subType, setSubType] = useState(''); // user-friendly name
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
@@ -68,7 +69,10 @@ const UploadForm = ({ onUploadSuccess }) => {
       setVerificationProgress(100);
       
       // Save document to localStorage
-      const savedDocument = saveDocumentToLocal();
+      const savedDocument = {
+        ...saveDocumentToLocal(),
+        subType: subType
+      };
       
       if (onUploadSuccess) {
         onUploadSuccess(savedDocument);
@@ -88,10 +92,14 @@ const UploadForm = ({ onUploadSuccess }) => {
     setUploadSuccess(false);
     setVerificationProgress(0);
     setCurrentStep('');
-    const fileInput = document.getElementById('file');
-    if (fileInput) {
-      fileInput.value = '';
-    }
+    // Force dashboard refresh after reset
+    navigate('/dashboard', { state: { fromUpload: true } });
+    setTimeout(() => {
+      const fileInput = document.getElementById('file');
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    }, 100);
   };
 
   const handleFileChange = (e) => {
@@ -137,10 +145,17 @@ const UploadForm = ({ onUploadSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file || !documentType) {
+    if (!file || !subType) {
       alert('Please select a file and document type');
       return;
     }
+    // Always map subType to backend value, fallback to 'other'
+    const backendType = documentTypeMap[subType] || 'other';
+    if (!backendType || backendType === 'other') {
+      alert('Selected document type is not supported by the backend. Please choose a valid type.');
+      return;
+    }
+    setDocumentType(backendType);
 
     // Final validation
     if (file.size > 10 * 1024 * 1024) {
@@ -149,45 +164,53 @@ const UploadForm = ({ onUploadSuccess }) => {
     }
 
     setLoading(true);
-    
+
     try {
       console.log('Starting upload...');
       console.log('File:', file.name, 'Size:', file.size, 'Type:', file.type);
-      console.log('Document Type:', documentType);
+      console.log('Document Type being sent:', backendType);
       console.log('Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
-      
+
       // Try to upload to server first
       try {
-        const response = await uploadDocument(file, documentType);
+        // Send both documentType (backend value) and subType (user-friendly)
+        const response = await uploadDocument(file, backendType, subType);
         console.log('Server upload successful:', response.data);
-        
+
         // Show success state and start verification animation
         setUploadSuccess(true);
         simulateVerificationProgress();
-        
+
         // Reset file input
         const fileInput = document.getElementById('file');
         if (fileInput) {
           fileInput.value = '';
         }
-        
+
       } catch (serverError) {
+        // Check for invalid document type error from backend
+        if (serverError.response && serverError.response.data && serverError.response.data.message && serverError.response.data.message.includes('Invalid document type')) {
+          alert('Upload failed: ' + serverError.response.data.message + '\nYou selected: ' + backendType + '\nAllowed types: id-card, voter-id, driver-license, marriage-certificate, academic-certificate, professional-certificate, visa, work-permit, residence-permit, social-security-card, utility-bill, bank-statement, insurance-card, medical-certificate, tax-document, property-deed, other');
+          console.error('Invalid document type sent:', backendType);
+          setLoading(false);
+          return;
+        }
         console.log('Server upload failed, proceeding with local simulation:', serverError.message);
-        
+
         // Even if server fails, continue with local simulation
         setUploadSuccess(true);
         simulateVerificationProgress();
-        
+
         // Reset file input
         const fileInput = document.getElementById('file');
         if (fileInput) {
           fileInput.value = '';
         }
       }
-      
+
     } catch (error) {
       console.error('Upload process failed:', error);
-      
+
       // More detailed error handling
       if (error.response) {
         // Server responded with error status
@@ -212,6 +235,32 @@ const UploadForm = ({ onUploadSuccess }) => {
     }
   };
 
+  // Mapping of user-friendly names to backend values
+  // Strict mapping: only backend-allowed values
+  const documentTypeMap = {
+    'Aadhar Card': 'id-card',
+    'PAN Card': 'id-card',
+    'Voter ID': 'voter-id',
+    'Driving License': 'driver-license',
+    'Marriage Certificate': 'marriage-certificate',
+    'Academic Certificate': 'academic-certificate',
+    'Professional Certificate': 'professional-certificate',
+    'Visa': 'visa',
+    'Work Permit': 'work-permit',
+    'Residence Permit': 'residence-permit',
+    'Social Security Card': 'social-security-card',
+    'Utility Bill': 'utility-bill',
+    'Bank Statement': 'bank-statement',
+    'Insurance Card': 'insurance-card',
+    'Medical Certificate': 'medical-certificate',
+    'Tax Document': 'tax-document',
+    'Property Deed': 'property-deed',
+    'Other': 'other'
+  };
+
+  // Only show user-friendly names that map to allowed backend values
+  const allowedDocumentLabels = Object.keys(documentTypeMap);
+
   return (
     <div className="upload-form-container">
       {!uploadSuccess ? (
@@ -220,31 +269,18 @@ const UploadForm = ({ onUploadSuccess }) => {
             <label htmlFor="documentType">Document Type:</label>
             <select
               id="documentType"
-              value={documentType}
-              onChange={(e) => setDocumentType(e.target.value)}
+              value={subType}
+              onChange={(e) => {
+                setSubType(e.target.value);
+                setDocumentType(documentTypeMap[e.target.value] || '');
+              }}
               required
               style={{ color: 'black' }}
             >
               <option value="" style={{ color: 'black' }}>Select Document Type</option>
-              <option value="passport" style={{ color: 'black' }}>Passport</option>
-              <option value="id-card" style={{ color: 'black' }}>National ID Card</option>
-              <option value="driver-license" style={{ color: 'black' }}>Driver's License</option>
-              <option value="birth-certificate" style={{ color: 'black' }}>Birth Certificate</option>
-              <option value="marriage-certificate" style={{ color: 'black' }}>Marriage Certificate</option>
-              <option value="academic-certificate" style={{ color: 'black' }}>Academic Certificate</option>
-              <option value="professional-certificate" style={{ color: 'black' }}>Professional Certificate</option>
-              <option value="visa" style={{ color: 'black' }}>Visa</option>
-              <option value="work-permit" style={{ color: 'black' }}>Work Permit</option>
-              <option value="residence-permit" style={{ color: 'black' }}>Residence Permit</option>
-              <option value="social-security-card" style={{ color: 'black' }}>Social Security Card</option>
-              <option value="voter-id" style={{ color: 'black' }}>Voter ID</option>
-              <option value="utility-bill" style={{ color: 'black' }}>Utility Bill</option>
-              <option value="bank-statement" style={{ color: 'black' }}>Bank Statement</option>
-              <option value="insurance-card" style={{ color: 'black' }}>Insurance Card</option>
-              <option value="medical-certificate" style={{ color: 'black' }}>Medical Certificate</option>
-              <option value="tax-document" style={{ color: 'black' }}>Tax Document</option>
-              <option value="property-deed" style={{ color: 'black' }}>Property Deed</option>
-              <option value="other" style={{ color: 'black' }}>Other Document</option>
+              {allowedDocumentLabels.map((label) => (
+                <option key={label} value={label} style={{ color: 'black' }}>{label}</option>
+              ))}
             </select>
           </div>
           

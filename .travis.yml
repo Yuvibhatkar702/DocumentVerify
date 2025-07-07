@@ -1,0 +1,41 @@
+language: python
+python:
+  - "3.11"
+
+services:
+  - docker
+
+jobs:
+  include:
+    - stage: Python tests
+      name: AI/ML Service
+      before_install:
+        - cd ai-ml-service
+      install:
+        - pip install -r requirements.txt
+      script:
+        - python -m unittest discover || true  # Replace with your test command
+    - stage: Node.js tests
+      name: Server
+      language: node_js
+      node_js:
+        - "20"
+      before_install:
+        - cd server
+      install:
+        - npm install
+      script:
+        - npm test || true  # Replace with your test command
+    - stage: Node.js tests
+      name: Client
+      language: node_js
+      node_js:
+        - "20"
+      before_install:
+        - cd client
+      install:
+        - npm install
+      script:
+        - npm run build || true  # Replace with your test/build command
+
+# You can add deploy steps here if needed

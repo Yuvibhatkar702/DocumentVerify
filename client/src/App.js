@@ -16,6 +16,7 @@ import ProfileSettingsPage from './pages/ProfileSettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DebugRegister from './components/DebugRegister';
 
+
 function App() {
   return (
     <AuthProvider>
