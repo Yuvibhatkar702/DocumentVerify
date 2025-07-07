@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const { expandedDocumentTypes } = require('../data/documentTypes');
+
 
 const documentSchema = new mongoose.Schema({
   userId: {
@@ -19,30 +21,10 @@ const documentSchema = new mongoose.Schema({
     required: true
   },
   documentType: {
-    type: String,
-    required: true,
-    enum: [
-      'passport',
-      'id-card',
-      'driver-license',
-      'birth-certificate',
-      'marriage-certificate',
-      'academic-certificate',
-      'professional-certificate',
-      'visa',
-      'work-permit',
-      'residence-permit',
-      'social-security-card',
-      'voter-id',
-      'utility-bill',
-      'bank-statement',
-      'insurance-card',
-      'medical-certificate',
-      'tax-document',
-      'property-deed',
-      'other'
-    ]
-  },
+  type: String,
+  required: true,
+  enum: expandedDocumentTypes  // ✅ use the full list here
+},
   fileSize: {
     type: Number,
     required: true

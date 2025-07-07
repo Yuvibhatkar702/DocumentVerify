@@ -32,10 +32,19 @@ const UploadForm = ({ onUploadSuccess }) => {
         expiryDate: new Date(Date.now() + Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       }
     };
-    
+    // Save to global uploadedDocuments (legacy)
     existingDocs.unshift(newDocument); // Add to beginning (newest first)
     localStorage.setItem('uploadedDocuments', JSON.stringify(existingDocs));
-    
+
+    // Also save to user-specific documents for dashboard
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      const userDocsKey = `userDocuments_${userId}`;
+      const userDocs = JSON.parse(localStorage.getItem(userDocsKey) || '[]');
+      userDocs.unshift(newDocument);
+      localStorage.setItem(userDocsKey, JSON.stringify(userDocs));
+    }
+
     console.log('Document saved to localStorage:', newDocument);
     return newDocument;
   };

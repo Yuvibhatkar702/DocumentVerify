@@ -1,15 +1,19 @@
-// DocumentUploadPage – Styled to match animated LandingPage with glassmorphism and drag/drop visibility fix
-
 import React from 'react';
 import UploadForm from '../components/UploadForm';
 import { uploadDocument } from '../services/documentService';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const DocumentUploadPage = () => {
+  const navigate = useNavigate(); // ✅ Required for redirection
+
   const handleUpload = async (formData) => {
     try {
       const response = await uploadDocument(formData);
       console.log('Document uploaded:', response.data);
+
+      // ✅ Redirect to dashboard with refresh trigger
+      navigate('/dashboard', { state: { fromUpload: true } });
     } catch (error) {
       console.error('Error uploading document:', error);
     }
@@ -50,7 +54,7 @@ const DocumentUploadPage = () => {
           </div>
         </div>
 
-        {/* Ensure drag-drop areas and lists inherit text color */}
+        {/* Upload Form */}
         <div className="text-white">
           <UploadForm onUploadSuccess={handleUpload} />
         </div>
