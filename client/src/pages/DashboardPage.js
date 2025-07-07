@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { getDocuments } from '../services/documentService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
@@ -26,9 +26,63 @@ const Dashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const { selectCategory, clearCategory, categories } = useCategory();
 
+  const fetchDocuments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      let documentsData = [];
+
+      // Try to get real documents from API first
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await getDocuments();
+          console.log('[Dashboard] getDocuments() API response:', response);
+          if (response && response.success && response.data) {
+            documentsData = response.data;
+          } else if (response && Array.isArray(response)) {
+            documentsData = response;
+          }
+        }
+      } catch (fetchError) {
+        console.log('[Dashboard] API fetch error:', fetchError.message);
+        // If API fails, check for locally stored documents for this user
+        const userId = user?.id || localStorage.getItem('userId');
+        if (userId) {
+          const userDocs = JSON.parse(localStorage.getItem(`userDocuments_${userId}`) || '[]');
+          documentsData = userDocs;
+        }
+      }
+
+      // Sort by creation date (newest first)
+      if (documentsData.length > 0) {
+        documentsData.sort((a, b) => new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt));
+      }
+
+      console.log('[Dashboard] Final documentsData to set:', documentsData);
+      setDocuments(documentsData);
+
+      // Calculate stats based on actual documents
+      const stats = documentsData.reduce((acc, doc) => {
+        acc.total++;
+        if (doc.status === 'verified') acc.verified++;
+        else if (doc.status === 'processing' || doc.status === 'needs_review') acc.pending++;
+        else acc.failed++;
+        return acc;
+      }, { total: 0, verified: 0, pending: 0, failed: 0 });
+
+      setStats(stats);
+    } catch (error) {
+      console.error('[Dashboard] Error in fetchDocuments:', error);
+      setError('Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]); // Added user.id as dependency for localStorage key generation
+
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
 
   // Listen for navigation from upload page to refresh documents
   useEffect(() => {
@@ -37,7 +91,7 @@ const Dashboard = () => {
       // Clear the state to prevent multiple refreshes
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, fetchDocuments]);
 
   // Function to get user name from multiple sources
   const getUserName = () => {

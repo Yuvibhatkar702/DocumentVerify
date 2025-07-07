@@ -27,13 +27,9 @@ const connectDB = async () => {
     console.error('2. Use MongoDB Atlas (cloud)');
     console.error('3. Update MONGODB_URI in .env file');
     
-    // Don't exit in development, just warn
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    } else {
-      console.warn('Continuing without database connection...');
-      // Don't throw error in development to allow server to start
-    }
+    // Exit if connection fails, regardless of environment for more explicit failure.
+    console.error('Exiting due to database connection error.');
+    process.exit(1);
   }
 };
 
