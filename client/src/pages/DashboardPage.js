@@ -168,24 +168,23 @@ const Dashboard = () => {
   };
 
   // Filter and sort documents
-  // DEBUG: Show all documents regardless of filter for troubleshooting
   const getFilteredAndSortedDocuments = () => {
     let filteredDocs = [...documents];
-    // Remove filter for debugging
-    // if (documentFilter !== 'all') {
-    //   filteredDocs = filteredDocs.filter(doc => {
-    //     switch (documentFilter) {
-    //       case 'verified':
-    //         return doc.status === 'verified';
-    //       case 'pending':
-    //         return doc.status === 'processing' || doc.status === 'needs_review';
-    //       case 'failed':
-    //         return doc.status === 'rejected' || doc.status === 'failed';
-    //       default:
-    //         return true;
-    //     }
-    //   });
-    // }
+    // Enable filter logic for document status
+    if (documentFilter !== 'all') {
+      filteredDocs = filteredDocs.filter(doc => {
+        switch (documentFilter) {
+          case 'verified':
+            return doc.status === 'verified';
+          case 'pending':
+            return doc.status === 'processing' || doc.status === 'needs_review';
+          case 'failed':
+            return doc.status === 'rejected' || doc.status === 'failed';
+          default:
+            return true;
+        }
+      });
+    }
     // Apply sorting
     filteredDocs.sort((a, b) => {
       switch (documentSort) {
