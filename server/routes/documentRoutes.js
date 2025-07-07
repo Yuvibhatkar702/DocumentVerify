@@ -90,7 +90,7 @@ const verifyValidation = [
 ];
 
 // Routes
-router.post('/upload', preUploadLogger, auth, upload.single('document'), postUploadLogger, uploadErrorHandler, uploadDocument);
+router.post('/upload', preUploadLogger, auth, upload.single('document'), postUploadLogger, uploadErrorHandler, uploadValidation, uploadDocument);
 router.get('/', auth, getDocuments);
 router.get('/:id', auth, getDocument);
 router.post('/:id/verify', auth, admin, verifyValidation, verifyDocument);
