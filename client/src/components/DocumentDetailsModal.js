@@ -146,12 +146,12 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
         </div>
 
         {/* Extracted Information (if available) */}
-        {document.extractedData && (
+        {document.verificationResult?.extractedData && Object.keys(document.verificationResult.extractedData).length > 0 && (
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-white mb-3">Extracted Information</h3>
             <div className="bg-gray-800 rounded-lg p-4">
               <pre className="text-gray-300 text-sm whitespace-pre-wrap">
-                {JSON.stringify(document.extractedData, null, 2)}
+                {JSON.stringify(document.verificationResult.extractedData, null, 2)}
               </pre>
             </div>
           </div>

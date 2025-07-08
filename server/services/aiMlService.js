@@ -249,10 +249,12 @@ class AIMlService {
       
       if (isPdf) {
         console.log('PDF format validation - basic validation...');
+        // Ensure a format_score is returned for PDFs for consistency
         return {
           is_valid: true,
           format_supported: true,
           file_type: 'pdf',
+          format_score: 0.7, // Assign a default reasonable score for a valid PDF format
           message: 'PDF format validation completed'
         };
       }
@@ -277,6 +279,7 @@ class AIMlService {
         is_valid: false,
         format_supported: false,
         file_type: 'unknown',
+        format_score: 0.1, // Assign a default low score on error
         message: 'Format validation service unavailable'
       };
     }

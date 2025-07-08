@@ -307,10 +307,20 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     // Check if AI/ML service is available
     const serviceHealthy = await AIMlService.checkServiceHealth();
     if (!serviceHealthy) {
-      console.error('AI/ML service is not available, marking as failed');
+      console.error('AI/ML service is not available, marking for pending review');
       await Document.findByIdAndUpdate(documentId, {
-        status: 'failed',
-        error: 'AI/ML service unavailable'
+        status: 'pending_review', // Changed from 'failed'
+        verificationResult: {
+          confidence: 0,
+          authenticity: 'unknown',
+          issues: ['AI/ML service was unavailable during processing.'],
+          analysisDetails: {
+            serviceStatus: 'unavailable',
+            recommendation: 'Document requires manual review or reprocessing when AI service is back online.'
+          },
+          error: 'AI/ML service unavailable' // Keep original error field if used elsewhere
+        },
+        processedAt: new Date() // Mark as processed, even if AI failed
       });
       return;
     }
@@ -347,14 +357,43 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
       authenticity = 'suspicious';
     }
     
+    // Content-Type Mismatch Detection
+    let typeMismatchFound = false;
+    let mismatchIssueMessage = '';
+    const aiExtractedData = analysisResult.extractedData || {};
+    const issues = analysisResult.anomalies || []; // Start with existing anomalies
+
+    if (documentType === 'aadhar-card' && !aiExtractedData.aadhaar_detected) {
+      typeMismatchFound = true;
+      mismatchIssueMessage = 'User selected Aadhar Card, but Aadhar-specific patterns were not detected by AI.';
+    } else if (documentType === 'pan-card' && !aiExtractedData.pan_detected) {
+      typeMismatchFound = true;
+      mismatchIssueMessage = 'User selected PAN Card, but PAN-specific patterns were not detected by AI.';
+    } else if (documentType === 'passport' && !aiExtractedData.passport_detected) {
+      typeMismatchFound = true;
+      mismatchIssueMessage = 'User selected Passport, but Passport-specific patterns were not detected by AI.';
+    }
+    // Add more specific checks here if aiExtractedData provides more boolean flags for other types
+
+    if (typeMismatchFound) {
+      issues.push(mismatchIssueMessage);
+      // Optionally, if a mismatch is a strong indicator, adjust status or score
+      // For now, just adding to issues. If status is already good, this might push it to pending_review.
+      if (documentStatus === 'verified') {
+        documentStatus = 'pending_review'; // If type mismatch, needs review even if other scores are high
+        authenticity = 'suspicious'; // Update authenticity as well
+      }
+    }
+
     // Update document with verification results
     await Document.findByIdAndUpdate(documentId, {
       status: documentStatus,
       verificationResult: {
         confidence: Math.round(authenticityScore * 100),
-        authenticity: authenticity,
+        authenticity: authenticity, // Use potentially updated authenticity
+        extractedData: aiExtractedData, // Save the extracted data from AI
         analysisDetails: {
-          aiAnalysis: analysisResult,
+          aiAnalysis: analysisResult, // This is the broader result from AIMlService.analyzeDocument
           formatValidation: formatValidation,
           ocrResult: {
             text: ocrResult.text || ocrResult.detected_text || '',
@@ -365,13 +404,15 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
             confidence: signatureResult.confidence || 0
           },
           qualityScore: analysisResult.verificationDetails?.qualityScore || analysisResult.quality_score || 0,
-          anomalies: analysisResult.anomalies || []
-        }
+          anomalies: analysisResult.anomalies || [] // Original anomalies from AI
+        },
+        issues: issues // Add mismatch issues here
       },
-      verifiedAt: new Date()
+      verifiedAt: new Date(),
+      processedAt: new Date()
     });
     
-    console.log(`Document ${documentId} processed - Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}`);
+    console.log(`Document ${documentId} processed - Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}, Issues: ${issues.join('; ')}`);
     
   } catch (error) {
     console.error(`Error processing document ${documentId}:`, error);
