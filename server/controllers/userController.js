@@ -15,7 +15,7 @@ const getUserProfile = async (req, res) => {
 
     // Get user statistics
     const documentStats = await Document.aggregate([
-      { $match: { uploadedBy: user._id } },
+      { $match: { userId: user._id } }, // Corrected field name from uploadedBy to userId
       {
         $group: {
           _id: '$status',

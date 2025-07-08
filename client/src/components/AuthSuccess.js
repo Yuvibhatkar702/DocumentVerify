@@ -25,7 +25,7 @@ const AuthSuccess = () => {
       
       // Decode token to get user info (you might want to make an API call instead)
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        // const payload = JSON.parse(atob(token.split('.')[1])); // payload not used
         // You should make an API call to get full user details
         // For now, we'll just redirect to dashboard
         navigate('/dashboard');

@@ -92,22 +92,10 @@ const uploadDocument = async (req, res) => {
       });
     }
 
-    // Validate document type
-    const validDocumentTypes = [
-      'passport', 'id-card', 'driver-license', 'birth-certificate', 
-      'marriage-certificate', 'academic-certificate', 'professional-certificate',
-      'visa', 'work-permit', 'residence-permit', 'social-security-card',
-      'voter-id', 'utility-bill', 'bank-statement', 'insurance-card',
-      'medical-certificate', 'tax-document', 'property-deed', 'other'
-    ];
-
-    if (!validDocumentTypes.includes(documentType)) {
-      console.log('Invalid document type:', documentType);
-      return res.status(400).json({
-        success: false,
-        message: `Invalid document type "${documentType}". Allowed types: ${validDocumentTypes.join(', ')}`
-      });
-    }
+    // Document type validation is now primarily handled by express-validator in the routes
+    // However, we still need to ensure documentType is provided.
+    // The check for whether it's a *valid* type according to the enum will be
+    // handled by Mongoose during the .save() operation if not caught by express-validator.
 
     console.log('Creating document record...');
 
@@ -176,18 +164,136 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     
     // Map document types for AI/ML service
     const mapDocumentTypeForAI = (frontendType) => {
+      // AI Service understands: 'id-card', 'passport', 'driver-license', 'certificate', 'other'
       const typeMapping = {
+        // ID Documents
+        'aadhar-card': 'id-card',
+        'pan-card': 'id-card',
         'voter-id': 'id-card',
-        'id-card': 'id-card',
         'passport': 'passport',
-        'driver-license': 'driver-license',
+        'driving-license': 'driver-license',
+        'ration-card': 'id-card', // Often card-like or booklet
+        'npr-id': 'id-card',
+        'social-security-id': 'id-card',
+        'employee-id-card': 'id-card',
+        'student-id-card': 'id-card',
+        'senior-citizen-card': 'id-card',
+        'visa': 'other', // Visas can be stickers in passports or separate docs
+        'oci-pio-card': 'id-card',
+        'other-id-document': 'id-card',
+
+        // Educational Certificates
+        'ssc-10th-marksheet': 'certificate',
+        'hsc-12th-marksheet': 'certificate',
+        'diploma-certificate': 'certificate',
+        'bachelors-degree': 'certificate',
+        'masters-degree': 'certificate',
+        'provisional-certificate': 'certificate',
+        'migration-certificate': 'certificate',
+        'character-certificate': 'certificate',
+        'transfer-certificate': 'certificate',
+        'bonafide-certificate': 'certificate',
+        'admit-card': 'other', // More of a temporary pass
+        'hall-ticket': 'other', // More of a temporary pass
+        'entrance-exam-result': 'certificate', // Or 'other', result sheets can vary
+        'internship-completion-certificate': 'certificate',
+        'mooc-online-course-certificate': 'certificate',
+        'other-educational-document': 'certificate',
+
+        // Government Issued Certificates
+        'caste-certificate': 'certificate',
+        'income-certificate': 'certificate',
+        'domicile-certificate': 'certificate',
         'birth-certificate': 'certificate',
+        'death-certificate': 'certificate',
+        'disability-certificate': 'certificate',
+        'ews-certificate': 'certificate',
         'marriage-certificate': 'certificate',
-        'academic-certificate': 'certificate',
-        'professional-certificate': 'certificate',
-        'medical-certificate': 'certificate'
+        'police-character-certificate': 'certificate',
+        'gazette-name-change-certificate': 'certificate',
+        'adoption-certificate': 'certificate',
+        'legal-heir-certificate': 'certificate',
+        'obc-sc-st-certificate': 'certificate',
+        'other-govt-issued-certificate': 'certificate',
+
+        // Financial Documents
+        'bank-passbook': 'other', // Multi-page booklet
+        'bank-statement': 'other', // Typically multi-page
+        'salary-slip': 'other',
+        'form-16': 'other', // Standardized form
+        'income-tax-return': 'other',
+        'pf-account-details': 'other',
+        'loan-approval-letter': 'certificate', // Can be seen as a formal letter/cert
+        'emi-schedule': 'other',
+        'credit-card-statement': 'other',
+        'investment-proof': 'other', // Varies widely
+        'uan-epfo-slip': 'other',
+        'digital-payment-receipt': 'other',
+        'other-financial-document': 'other',
+
+        // Address Proof (many overlap with IDs or are utility bills)
+        'aadhar-card-address': 'id-card', // Aadhar is an ID
+        'voter-id-address': 'id-card',   // Voter ID is an ID
+        'passport-address': 'passport',  // Passport is a passport
+        'electricity-bill': 'other', // Utility bill
+        'water-bill': 'other',       // Utility bill
+        'gas-bill': 'other',         // Utility bill
+        'property-tax-receipt': 'other',
+        'rent-agreement': 'other',   // Legal document
+        'telephone-landline-bill': 'other',
+        'registered-sale-deed': 'other', // Legal document
+        'bank-passbook-address': 'other',
+        'ration-card-address': 'id-card', // Ration card can be ID like
+        'other-address-proof': 'other',
+
+        // Employment Documents
+        'offer-letter': 'certificate', // Formal letter
+        'appointment-letter': 'certificate', // Formal letter
+        'experience-letter': 'certificate',
+        'relieving-letter': 'certificate',
+        'salary-certificate': 'certificate',
+        'employment-agreement': 'other', // Contract document
+        'joining-report': 'other',
+        'noc-certificate': 'certificate',
+        'promotion-letter': 'certificate',
+        'appraisal-letter': 'certificate',
+        'internship-letter': 'certificate',
+        'employment-id': 'id-card', // Usually a card
+        'other-work-document': 'other',
+
+        // Medical Documents
+        'medical-report': 'other', // Can be multi-page
+        'covid-vaccination-certificate': 'certificate',
+        'covid-test-report': 'certificate', // Or 'other'
+        'health-card': 'id-card', // Often card-like
+        'insurance-policy': 'other', // Multi-page document
+        'insurance-claim-report': 'other',
+        'doctor-prescription': 'other',
+        'discharge-summary': 'other',
+        'opd-slip': 'other',
+        'disability-certificate-medical': 'certificate', // This is a specific certificate
+        'blood-group-card': 'id-card', // Small card
+        'other-medical-document': 'other',
+
+        // Other Documents
+        'affidavit': 'other', // Legal document
+        'notarized-documents': 'other',
+        'self-declaration': 'other',
+        'non-employment-agreements': 'other',
+        'court-orders': 'other',
+        'legal-notices': 'other',
+        'school-leaving-certificate': 'certificate',
+        'hostel-form': 'other',
+        'club-ngo-membership-card': 'id-card',
+        'vehicle-registration-rc': 'id-card', // RC book/card
+        'driving-school-certificate': 'certificate',
+        'personal-notes': 'other',
+        'other-miscellaneous-document': 'other',
+
+        // Legacy support
+        'other': 'other'
       };
-      return typeMapping[frontendType] || 'other';
+      return typeMapping[frontendType] || 'other'; // Default to 'other' if not found
     };
     
     const aiDocumentType = mapDocumentTypeForAI(documentType);
@@ -201,10 +307,20 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     // Check if AI/ML service is available
     const serviceHealthy = await AIMlService.checkServiceHealth();
     if (!serviceHealthy) {
-      console.error('AI/ML service is not available, marking as failed');
+      console.error('AI/ML service is not available, marking for pending review');
       await Document.findByIdAndUpdate(documentId, {
-        status: 'failed',
-        error: 'AI/ML service unavailable'
+        status: 'pending_review', // Changed from 'failed'
+        verificationResult: {
+          confidence: 0,
+          authenticity: 'unknown',
+          issues: ['AI/ML service was unavailable during processing.'],
+          analysisDetails: {
+            serviceStatus: 'unavailable',
+            recommendation: 'Document requires manual review or reprocessing when AI service is back online.'
+          },
+          error: 'AI/ML service unavailable' // Keep original error field if used elsewhere
+        },
+        processedAt: new Date() // Mark as processed, even if AI failed
       });
       return;
     }
@@ -230,23 +346,64 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     );
     
     // Determine document status based on comprehensive analysis
-    let documentStatus = 'rejected';
-    let authenticity = 'fake';
+    let documentStatus = 'rejected'; // Default status
+    let authenticity = 'fake';       // Default authenticity
     
-    if (authenticityScore >= 0.8) {
+    // Determine status based on adjusted thresholds
+    if (authenticityScore >= 0.7) { // Lowered threshold for 'verified' from 0.8
       documentStatus = 'verified';
       authenticity = 'authentic';
-    } else if (authenticityScore >= 0.6) {
+    } else if (authenticityScore >= 0.5) { // Lowered threshold for 'pending_review' from 0.6
       documentStatus = 'pending_review';
       authenticity = 'suspicious';
+    }
+    // If authenticityScore < 0.5, it remains 'rejected' and 'fake'
+
+    // Initialize issues array starting with anomalies from AI
+    const issues = analysisResult.anomalies ? [...analysisResult.anomalies] : [];
+    const aiExtractedData = analysisResult.extractedData || {};
+    const aiDetectedType = aiExtractedData.detected_document_type_by_content;
+
+    // Content-Type Mismatch Detection Logic
+    if (aiDetectedType && aiDetectedType !== 'unknown' && aiDetectedType !== 'other') {
+      // Define specific types where a mismatch is critical
+      const criticalMismatchPairs = {
+        'aadhar-card': ['pan-card', 'passport', 'driving-license', 'caste-certificate', 'academic-certificate'],
+        'pan-card': ['aadhar-card', 'passport', 'driving-license', 'caste-certificate', 'academic-certificate'],
+        'passport': ['aadhar-card', 'pan-card', 'driving-license', 'caste-certificate', 'academic-certificate'],
+        'driving-license': ['aadhar-card', 'pan-card', 'passport', 'caste-certificate', 'academic-certificate'],
+        'caste-certificate': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'academic-certificate'],
+        'ssc-10th-marksheet': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'caste-certificate'],
+        'hsc-12th-marksheet': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'caste-certificate'],
+        'bachelors-degree': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'caste-certificate']
+        // Add more userSelectedType keys and their critical mismatch detected types
+      };
+
+      if (userSelectedType !== aiDetectedType) {
+        const mismatchMessage = `Type Mismatch: User selected '${documentType}', but AI detected content more consistent with '${aiDetectedType}'.`;
+        issues.push(mismatchMessage);
+        console.log(`Potential type mismatch for document ${documentId}: ${mismatchMessage}`);
+
+        // Check if this is a critical mismatch
+        if (criticalMismatchPairs[documentType]?.includes(aiDetectedType)) {
+          console.log(`Critical type mismatch detected for document ${documentId}. Overriding status to rejected.`);
+          documentStatus = 'rejected';
+          authenticity = 'fake'; // Or 'mismatch_error' if a new authenticity status is desired
+        } else if (documentStatus === 'verified') {
+          // If not critical but still a mismatch, and score was high, push to review
+          documentStatus = 'pending_review';
+          authenticity = 'suspicious';
+        }
+      }
     }
     
     // Update document with verification results
     await Document.findByIdAndUpdate(documentId, {
-      status: documentStatus,
+      status: documentStatus, // Use the potentially overridden status
       verificationResult: {
         confidence: Math.round(authenticityScore * 100),
-        authenticity: authenticity,
+        authenticity: authenticity, // Use the potentially overridden authenticity
+        extractedData: aiExtractedData,
         analysisDetails: {
           aiAnalysis: analysisResult,
           formatValidation: formatValidation,
@@ -260,12 +417,14 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
           },
           qualityScore: analysisResult.verificationDetails?.qualityScore || analysisResult.quality_score || 0,
           anomalies: analysisResult.anomalies || []
-        }
+        },
+        issues: issues // Now includes any mismatch issues
       },
-      verifiedAt: new Date()
+      verifiedAt: new Date(),
+      processedAt: new Date()
     });
     
-    console.log(`Document ${documentId} processed - Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}`);
+    console.log(`Document ${documentId} processed - Final Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}, Issues: ${issues.join('; ')}`);
     
   } catch (error) {
     console.error(`Error processing document ${documentId}:`, error);

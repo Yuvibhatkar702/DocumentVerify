@@ -37,10 +37,20 @@ export const register = async (userData) => {
 };
 
 export const getCurrentUser = async (token) => {
-  const response = await api.get('/auth/me', {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return response.data;
+  try {
+    console.log('AuthService: Getting current user');
+    const response = await api.get('/auth/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    console.log('AuthService: Get current user response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('AuthService: Get current user error:', error);
+    if (error.response) {
+      console.error('AuthService: Error response data:', error.response.data);
+    }
+    throw error;
+  }
 };
 
 export const forgotPassword = async (email) => {

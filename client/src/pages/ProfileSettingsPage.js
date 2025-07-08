@@ -18,7 +18,7 @@ import {
   FaUniversity,
   FaGlobe,
   FaUserTag,
-  FaCheck,
+  // FaCheck, // Not used
   FaCog
 } from 'react-icons/fa';
 

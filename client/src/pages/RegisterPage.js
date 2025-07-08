@@ -24,7 +24,7 @@ const RegisterPage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const { register } = useContext(AuthContext);
+  // const { register } = useContext(AuthContext); // register function not used in this component
   const navigate = useNavigate();
 
   const countries = [
