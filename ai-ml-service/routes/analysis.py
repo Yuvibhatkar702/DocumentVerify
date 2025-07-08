@@ -367,6 +367,32 @@ def extract_enhanced_data(features, classification_result):
             'anomaly_detected': classification_result.get('is_anomaly', False),
             'critical_issues': classification_result.get('penalty_analysis', {}).get('critical_issues', 0)
         }
+
+        # Determine detected content type based on features
+        detected_content_type = 'unknown'
+        if features.get('aadhaar_number_detected', False) or features.get('aadhaar_qr_pattern', False):
+            detected_content_type = 'aadhar-card'
+        elif features.get('pan_number_detected', False):
+            detected_content_type = 'pan-card'
+        elif features.get('passport_number_detected', False):
+            detected_content_type = 'passport'
+        elif features.get('document_type') == 'driving-license' and features.get('face_detected', False): # Assuming 'driving-license' is passed as form data
+            detected_content_type = 'driving-license'
+        # Add more rules for other types based on available features.
+        # For generic certificates, it's harder without more specific text analysis or templates.
+        # If OCR text contains "Certificate" and a name/date, it might be 'certificate'.
+        elif "certificate" in features.get('extracted_text', '').lower() and \
+             ("completion" in features.get('extracted_text', '').lower() or \
+              "degree" in features.get('extracted_text', '').lower() or \
+              "marksheet" in features.get('extracted_text', '').lower()):
+            detected_content_type = 'academic-certificate' # Generic academic
+        elif "caste certificate" in features.get('extracted_text', '').lower():
+            detected_content_type = 'caste-certificate'
+        # Fallback
+        elif features.get('ocr_text_length', 0) > 50 : # some text present
+             detected_content_type = features.get('document_type', 'other') # Use user-provided type if some content, else 'other'
+
+        extracted_data['detected_document_type_by_content'] = detected_content_type
         
         return extracted_data
         

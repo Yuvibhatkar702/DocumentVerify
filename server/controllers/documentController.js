@@ -346,54 +346,66 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     );
     
     // Determine document status based on comprehensive analysis
-    let documentStatus = 'rejected';
-    let authenticity = 'fake';
+    let documentStatus = 'rejected'; // Default status
+    let authenticity = 'fake';       // Default authenticity
     
-    if (authenticityScore >= 0.8) {
+    // Determine status based on adjusted thresholds
+    if (authenticityScore >= 0.7) { // Lowered threshold for 'verified' from 0.8
       documentStatus = 'verified';
       authenticity = 'authentic';
-    } else if (authenticityScore >= 0.6) {
+    } else if (authenticityScore >= 0.5) { // Lowered threshold for 'pending_review' from 0.6
       documentStatus = 'pending_review';
       authenticity = 'suspicious';
     }
-    
-    // Content-Type Mismatch Detection
-    let typeMismatchFound = false;
-    let mismatchIssueMessage = '';
+    // If authenticityScore < 0.5, it remains 'rejected' and 'fake'
+
+    // Initialize issues array starting with anomalies from AI
+    const issues = analysisResult.anomalies ? [...analysisResult.anomalies] : [];
     const aiExtractedData = analysisResult.extractedData || {};
-    const issues = analysisResult.anomalies || []; // Start with existing anomalies
+    const aiDetectedType = aiExtractedData.detected_document_type_by_content;
 
-    if (documentType === 'aadhar-card' && !aiExtractedData.aadhaar_detected) {
-      typeMismatchFound = true;
-      mismatchIssueMessage = 'User selected Aadhar Card, but Aadhar-specific patterns were not detected by AI.';
-    } else if (documentType === 'pan-card' && !aiExtractedData.pan_detected) {
-      typeMismatchFound = true;
-      mismatchIssueMessage = 'User selected PAN Card, but PAN-specific patterns were not detected by AI.';
-    } else if (documentType === 'passport' && !aiExtractedData.passport_detected) {
-      typeMismatchFound = true;
-      mismatchIssueMessage = 'User selected Passport, but Passport-specific patterns were not detected by AI.';
-    }
-    // Add more specific checks here if aiExtractedData provides more boolean flags for other types
+    // Content-Type Mismatch Detection Logic
+    if (aiDetectedType && aiDetectedType !== 'unknown' && aiDetectedType !== 'other') {
+      // Define specific types where a mismatch is critical
+      const criticalMismatchPairs = {
+        'aadhar-card': ['pan-card', 'passport', 'driving-license', 'caste-certificate', 'academic-certificate'],
+        'pan-card': ['aadhar-card', 'passport', 'driving-license', 'caste-certificate', 'academic-certificate'],
+        'passport': ['aadhar-card', 'pan-card', 'driving-license', 'caste-certificate', 'academic-certificate'],
+        'driving-license': ['aadhar-card', 'pan-card', 'passport', 'caste-certificate', 'academic-certificate'],
+        'caste-certificate': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'academic-certificate'],
+        'ssc-10th-marksheet': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'caste-certificate'],
+        'hsc-12th-marksheet': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'caste-certificate'],
+        'bachelors-degree': ['aadhar-card', 'pan-card', 'passport', 'driving-license', 'caste-certificate']
+        // Add more userSelectedType keys and their critical mismatch detected types
+      };
 
-    if (typeMismatchFound) {
-      issues.push(mismatchIssueMessage);
-      // Optionally, if a mismatch is a strong indicator, adjust status or score
-      // For now, just adding to issues. If status is already good, this might push it to pending_review.
-      if (documentStatus === 'verified') {
-        documentStatus = 'pending_review'; // If type mismatch, needs review even if other scores are high
-        authenticity = 'suspicious'; // Update authenticity as well
+      if (userSelectedType !== aiDetectedType) {
+        const mismatchMessage = `Type Mismatch: User selected '${documentType}', but AI detected content more consistent with '${aiDetectedType}'.`;
+        issues.push(mismatchMessage);
+        console.log(`Potential type mismatch for document ${documentId}: ${mismatchMessage}`);
+
+        // Check if this is a critical mismatch
+        if (criticalMismatchPairs[documentType]?.includes(aiDetectedType)) {
+          console.log(`Critical type mismatch detected for document ${documentId}. Overriding status to rejected.`);
+          documentStatus = 'rejected';
+          authenticity = 'fake'; // Or 'mismatch_error' if a new authenticity status is desired
+        } else if (documentStatus === 'verified') {
+          // If not critical but still a mismatch, and score was high, push to review
+          documentStatus = 'pending_review';
+          authenticity = 'suspicious';
+        }
       }
     }
 
     // Update document with verification results
     await Document.findByIdAndUpdate(documentId, {
-      status: documentStatus,
+      status: documentStatus, // Use the potentially overridden status
       verificationResult: {
         confidence: Math.round(authenticityScore * 100),
-        authenticity: authenticity, // Use potentially updated authenticity
-        extractedData: aiExtractedData, // Save the extracted data from AI
+        authenticity: authenticity, // Use the potentially overridden authenticity
+        extractedData: aiExtractedData,
         analysisDetails: {
-          aiAnalysis: analysisResult, // This is the broader result from AIMlService.analyzeDocument
+          aiAnalysis: analysisResult,
           formatValidation: formatValidation,
           ocrResult: {
             text: ocrResult.text || ocrResult.detected_text || '',
@@ -404,15 +416,15 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
             confidence: signatureResult.confidence || 0
           },
           qualityScore: analysisResult.verificationDetails?.qualityScore || analysisResult.quality_score || 0,
-          anomalies: analysisResult.anomalies || [] // Original anomalies from AI
+          anomalies: analysisResult.anomalies || []
         },
-        issues: issues // Add mismatch issues here
+        issues: issues // Now includes any mismatch issues
       },
       verifiedAt: new Date(),
       processedAt: new Date()
     });
     
-    console.log(`Document ${documentId} processed - Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}, Issues: ${issues.join('; ')}`);
+    console.log(`Document ${documentId} processed - Final Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}, Issues: ${issues.join('; ')}`);
     
   } catch (error) {
     console.error(`Error processing document ${documentId}:`, error);
