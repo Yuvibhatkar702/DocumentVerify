@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:50011/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api'; // Corrected port from 50011 to 5001
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -73,16 +73,48 @@ export const uploadDocument = async (file, documentType) => {
 };
 
 export const getDocuments = async () => {
-  const response = await api.get('/documents');
-  return response.data;
+  try {
+    console.log('DocumentService: Getting documents');
+    const response = await api.get('/documents');
+    console.log('DocumentService: Get documents response status:', response.status);
+    return response.data;
+  } catch (error) {
+    console.error('DocumentService: Get documents error:', error);
+    if (error.response) {
+      console.error('DocumentService: Error response data:', error.response.data);
+    }
+    throw error;
+  }
 };
 
 export const getDocumentById = async (id) => {
-  return api.get(`/documents/${id}`);
+  try {
+    console.log(`DocumentService: Getting document by ID: ${id}`);
+    const response = await api.get(`/documents/${id}`);
+    console.log('DocumentService: Get document by ID response status:', response.status);
+    return response.data; // Standardized to return response.data
+  } catch (error) {
+    console.error(`DocumentService: Get document by ID (${id}) error:`, error);
+    if (error.response) {
+      console.error('DocumentService: Error response data:', error.response.data);
+    }
+    throw error;
+  }
 };
 
 export const verifyDocument = async (id) => {
-  return api.post(`/documents/${id}/verify`);
+  try {
+    console.log(`DocumentService: Verifying document by ID: ${id}`);
+    const response = await api.post(`/documents/${id}/verify`);
+    console.log('DocumentService: Verify document response status:', response.status);
+    return response.data; // Standardized to return response.data
+  } catch (error) {
+    console.error(`DocumentService: Verify document by ID (${id}) error:`, error);
+    if (error.response) {
+      console.error('DocumentService: Error response data:', error.response.data);
+    }
+    throw error;
+  }
 };
 
 export default api;

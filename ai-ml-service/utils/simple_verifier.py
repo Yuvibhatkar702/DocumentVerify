@@ -412,7 +412,7 @@ class SimpleAdvancedVerifier:
             
             # Text analysis
             if features.get('suspicious_text_detected', False):
-                score -= 0.3
+                score -= 0.15 # Reduced penalty
                 anomalies.append("Suspicious text content detected")
             
             if features.get('ocr_text_length', 0) < 10:
@@ -424,10 +424,10 @@ class SimpleAdvancedVerifier:
             if doc_type in ['id-card', 'passport', 'driver-license', 'aadhar-card']:
                 if features.get('face_detected', False):
                     score += 0.1
-                    if features.get('face_quality_mean', 0) > 100:
+                    if features.get('face_quality_mean', 0) > 100: # Assuming face_quality_mean is sharpness-like
                         score += 0.05
                 else:
-                    score -= 0.2
+                    score -= 0.2 # Penalty for no face in ID is significant
                     anomalies.append("No face detected in ID document")
                 
                 if features.get('multiple_faces_detected', False):
@@ -436,21 +436,21 @@ class SimpleAdvancedVerifier:
             
             # Metadata checks
             if features.get('editing_software_detected', False):
-                score -= 0.2
-                anomalies.append("Document created with editing software")
+                score -= 0.05 # Reduced penalty
+                anomalies.append("Document may have been processed by editing software") # Softened message
             
             if features.get('suspicious_filename', False):
-                score -= 0.15
+                score -= 0.10 # Reduced penalty
                 anomalies.append("Suspicious filename detected")
             
             # File size check
-            if features.get('file_size', 0) < 10000:
-                score -= 0.1
-                anomalies.append("File size too small")
+            if features.get('file_size', 0) < 5000: # Threshold to 5KB, reduced penalty
+                score -= 0.05
+                anomalies.append("File size is very small")
             
             # Digital forensics
-            if features.get('copy_paste_score', 0) > 0.7:
-                score -= 0.2
+            if features.get('copy_paste_score', 0) > 0.8: # Threshold to 0.8, reduced penalty
+                score -= 0.15
                 anomalies.append("High copy-paste similarity detected")
             
             # Image dimensions
