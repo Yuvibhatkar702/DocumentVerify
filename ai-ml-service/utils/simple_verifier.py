@@ -463,8 +463,8 @@ class SimpleAdvancedVerifier:
             # Apply final constraints
             final_score = max(0.0, min(1.0, score))
             
-            # Document is authentic if score > 0.7 and minimal anomalies
-            is_authentic = final_score >= 0.7 and len(anomalies) <= 2
+            # Document is authentic if score > 0.65 and fewer anomalies
+            is_authentic = final_score >= 0.65 and len(anomalies) <= 3 # Adjusted threshold and anomaly count
             
             return {
                 'is_authentic': is_authentic,

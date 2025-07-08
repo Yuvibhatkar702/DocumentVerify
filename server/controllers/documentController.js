@@ -458,8 +458,9 @@ const calculateAuthenticityScore = (analysisResult, formatValidation, ocrResult,
     
     // Check for anomalies (reduces score)
     const anomalies = analysisResult.anomalies || [];
-    const anomalyPenalty = anomalies.length * 0.1;
-    
+    let anomalyPenalty = anomalies.length * 0.05; // Reduced penalty per anomaly
+    anomalyPenalty = Math.min(anomalyPenalty, 0.4); // Cap max penalty from anomalies to 0.4
+
     // Weighted calculation
     const weightedScore = (
       aiScore * 0.35 +           // AI analysis weight
