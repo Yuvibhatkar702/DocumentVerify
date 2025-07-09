@@ -153,6 +153,11 @@ const UploadForm = ({ onUploadSuccess }) => {
       alert('Please select a document type.');
       return;
     }
+    // Add specific check for the string "undefined"
+    if (documentType === 'undefined') {
+      alert('Please select a valid document type. The type cannot be "undefined".');
+      return;
+    }
     if (!file || !(file instanceof File)) {
       alert('Please select a valid file.');
       // Attempt to reset file input visually if it's in a weird state, though state should be null

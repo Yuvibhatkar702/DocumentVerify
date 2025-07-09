@@ -427,8 +427,8 @@ class SimpleAdvancedVerifier:
                     if features.get('face_quality_mean', 0) > 100: # Assuming face_quality_mean is sharpness-like
                         score += 0.05
                 else:
-                    score -= 0.2 # Penalty for no face in ID is significant
-                    anomalies.append("No face detected in ID document")
+                    score -= 0.15 # Reduced penalty for no face in ID
+                    anomalies.append("No face detected in ID document (or detection failed)")
                 
                 if features.get('multiple_faces_detected', False):
                     score -= 0.15

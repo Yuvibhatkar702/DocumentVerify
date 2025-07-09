@@ -326,18 +326,27 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
     }
     
     // Perform comprehensive document analysis
+    console.log(`[AI_DEBUG ${documentId}] Calling AIMlService.analyzeDocument...`);
     const analysisResult = await AIMlService.analyzeDocument(filePath, aiDocumentType);
+    console.log(`[AI_DEBUG ${documentId}] analysisResult:`, JSON.stringify(analysisResult, null, 2));
     
     // Perform format validation
+    console.log(`[AI_DEBUG ${documentId}] Calling AIMlService.validateDocumentFormat...`);
     const formatValidation = await AIMlService.validateDocumentFormat(filePath, aiDocumentType);
+    console.log(`[AI_DEBUG ${documentId}] formatValidation:`, JSON.stringify(formatValidation, null, 2));
     
     // Perform OCR
+    console.log(`[AI_DEBUG ${documentId}] Calling AIMlService.performOCR...`);
     const ocrResult = await AIMlService.performOCR(filePath);
+    console.log(`[AI_DEBUG ${documentId}] ocrResult:`, JSON.stringify(ocrResult, null, 2));
     
     // Perform signature detection
+    console.log(`[AI_DEBUG ${documentId}] Calling AIMlService.detectSignature...`);
     const signatureResult = await AIMlService.detectSignature(filePath);
+    console.log(`[AI_DEBUG ${documentId}] signatureResult:`, JSON.stringify(signatureResult, null, 2));
     
     // Calculate comprehensive authenticity score
+    console.log(`[AI_DEBUG ${documentId}] Calculating authenticityScore...`);
     const authenticityScore = calculateAuthenticityScore(
       analysisResult, 
       formatValidation, 
@@ -396,9 +405,11 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
         }
       }
     }
-    
-    // Update document with verification results
-    await Document.findByIdAndUpdate(documentId, {
+    console.log(`[AI_DEBUG ${documentId}] Calculated authenticityScore: ${authenticityScore}`);
+    console.log(`[AI_DEBUG ${documentId}] Determined documentStatus: ${documentStatus}, authenticity: ${authenticity}`);
+    console.log(`[AI_DEBUG ${documentId}] Final issues list:`, JSON.stringify(issues, null, 2));
+
+    const finalUpdateObject = {
       status: documentStatus, // Use the potentially overridden status
       verificationResult: {
         confidence: Math.round(authenticityScore * 100),
@@ -422,7 +433,11 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
       },
       verifiedAt: new Date(),
       processedAt: new Date()
-    });
+    };
+    console.log(`[AI_DEBUG ${documentId}] Object for final DB update:`, JSON.stringify(finalUpdateObject, null, 2));
+
+    // Update document with verification results
+    await Document.findByIdAndUpdate(documentId, finalUpdateObject);
     
     console.log(`Document ${documentId} processed - Final Status: ${documentStatus}, Authenticity: ${authenticity}, Score: ${authenticityScore}, Issues: ${issues.join('; ')}`);
     
