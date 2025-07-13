@@ -31,29 +31,25 @@ class AIMlService {
 
       return this.processAnalysisResult(response.data);
     } catch (error) {
-      console.error('AI/ML Service error:', error);
-      
-      // Return a realistic analysis result instead of auto-boosting
+      console.error('AI/ML Service error in analyzeDocument:', error.message);
+      // Ensure a consistent structure expected by processAnalysisResult and documentController
       return {
-        isValid: false,
-        confidenceScore: 0.1, // Low confidence when service fails
-        detectedText: 'Analysis failed - service unavailable',
-        authenticity: 'unknown',
-        verificationStatus: 'failed',
-        extractedData: {
-          documentType: documentType,
+        is_valid: false, // Matches Python service field name
+        confidence_score: 0.1, // Matches Python service field name
+        detected_text: 'Analysis failed - AI service error',
+        extracted_data: { // Ensure this object exists and has the new field
+          documentType: documentType, // User-provided type
           processed: false,
-          serviceError: true
+          serviceError: true,
+          detected_document_type_by_content: 'unknown' // Default for error
         },
-        anomalies: ['AI service unavailable', 'Could not perform full analysis'],
-        analysisDetails: {
-          formatValidation: 'failed',
-          contentAnalysis: 'failed',
-          serviceStatus: 'unavailable',
-          recommendation: 'Please try again later or contact support'
-        },
-        verificationMethod: 'service-unavailable',
-        error: error.message
+        anomalies: ['AI service error during analysis', error.message],
+        quality_score: 0.1, // Matches Python service field name, default low
+        // Other fields that processAnalysisResult or controller might expect from Python's /analyze
+        ocr_accuracy: 0.1,
+        signature_detected: false,
+        format_validation: { is_valid: false, format_score: 0.1, message: 'AI service error' },
+        error: error.message // Keep original error
       };
     }
   }
@@ -61,101 +57,78 @@ class AIMlService {
   async analyzePdfDocument(filePath, documentType) {
     try {
       console.log('Performing PDF-specific analysis...');
-      
-      // Basic PDF validation
       const fs = require('fs');
       const stats = fs.statSync(filePath);
       const fileSize = stats.size;
-      
-      // Read first few bytes to check PDF signature
       const fd = fs.openSync(filePath, 'r');
       const buffer = Buffer.alloc(8);
       fs.readSync(fd, buffer, 0, 8, 0);
       fs.closeSync(fd);
-      
       const pdfSignature = buffer.toString('ascii', 0, 4);
-      
-      if (pdfSignature !== '%PDF') {
-        return {
-          isValid: false,
-          confidenceScore: 0.0,
-          detectedText: 'Invalid PDF file',
-          authenticity: 'fake',
-          verificationStatus: 'rejected',
-          extractedData: { documentType: documentType, processed: false },
-          anomalies: ['Invalid PDF signature'],
-          analysisDetails: {
-            formatValidation: 'failed',
-            contentAnalysis: 'failed',
-            fileSignature: pdfSignature
-          }
-        };
-      }
-      
-      // PDF looks valid, but we need more analysis
+
+      let isValid = false;
+      let confidence = 0.1; // Default low confidence
       const anomalies = [];
-      
-      // Check file size (very small PDFs might be suspicious)
-      if (fileSize < 1000) {
-        anomalies.push('PDF file size too small');
+      let qualityScoreInternal = 0.3; // Default low quality for PDFs if checks fail
+
+      if (pdfSignature === '%PDF') {
+        isValid = true; // Basic format is PDF
+        confidence = 0.6; // Base confidence for a structurally valid PDF
+        qualityScoreInternal = 0.6;
+
+        if (fileSize < 1000) anomalies.push('PDF file size too small'); else qualityScoreInternal += 0.1;
+        if (fileSize > 10000) confidence += 0.1;
+        if (fileSize > 50000) confidence += 0.1; qualityScoreInternal += 0.1;
+
+        const filename = filePath.split(/[\\\/]/).pop().toLowerCase();
+        const suspiciousWords = ['fake', 'fraud', 'sample', 'test', 'dummy', 'specimen'];
+        if (suspiciousWords.some(word => filename.includes(word))) {
+          anomalies.push('Suspicious filename detected');
+        }
+
+        if (anomalies.length === 0) confidence += 0.1; else qualityScoreInternal -= 0.1 * anomalies.length;
+        confidence -= (anomalies.length * 0.2);
+        isValid = confidence >= 0.5 && anomalies.length === 0; // PDF 'isValid' can be simpler
+      } else {
+        anomalies.push('Invalid PDF signature');
       }
       
-      // Check for suspicious filename
-      const filename = filePath.split(/[\\\/]/).pop().toLowerCase();
-      const suspiciousWords = ['fake', 'fraud', 'counterfeit', 'forged', 'sample', 'test', 'dummy', 'specimen'];
-      if (suspiciousWords.some(word => filename.includes(word))) {
-        anomalies.push('Suspicious filename detected');
-      }
-      
-      // Calculate confidence based on basic checks
-      let confidence = 0.6; // Base confidence for valid PDF
-      
-      if (fileSize > 10000) confidence += 0.1; // Good size
-      if (fileSize > 50000) confidence += 0.1; // Better size
-      if (anomalies.length === 0) confidence += 0.1; // No anomalies
-      
-      // Reduce confidence for anomalies
-      confidence -= (anomalies.length * 0.2);
-      
-      const isValid = confidence >= 0.7 && anomalies.length === 0;
-      
+      const finalConfidenceScore = Math.max(0.0, Math.min(1.0, confidence));
+      const finalQualityScore = Math.max(0.0, Math.min(1.0, qualityScoreInternal));
+
       return {
-        isValid: isValid,
-        confidenceScore: Math.max(0.0, Math.min(1.0, confidence)),
-        detectedText: 'PDF document analyzed',
-        authenticity: isValid ? 'authentic' : 'suspicious',
-        verificationStatus: isValid ? 'verified' : 'rejected',
-        extractedData: {
-          documentType: documentType,
+        is_valid: isValid, // Matches Python service field name for consistency
+        confidence_score: finalConfidenceScore, // Matches Python service field name
+        detected_text: `PDF (Signature: ${pdfSignature}, Size: ${fileSize} bytes)`,
+        extracted_data: {
+          documentType: documentType, // User-provided type
           processed: true,
           fileFormat: 'PDF',
           fileSize: fileSize,
-          pdfVersion: buffer.toString('ascii', 5, 8)
+          pdfVersion: isValid ? buffer.toString('ascii', 5, 8) : 'N/A',
+          detected_document_type_by_content: 'pdf' // Or could be documentType if more specific
         },
         anomalies: anomalies,
-        analysisDetails: {
-          formatValidation: pdfSignature === '%PDF' ? 'passed' : 'failed',
-          contentAnalysis: 'basic-pdf-analysis',
-          fileSignature: pdfSignature,
-          qualityScore: isValid ? 85 : 45
-        }
+        quality_score: finalQualityScore, // Matches Python service field name
+        // Mimic other fields expected by processAnalysisResult if they came from Python /analyze
+        ocr_accuracy: 0.5, // Default for PDF as it's not deeply OCRed here
+        signature_detected: false, // Default for PDF
+        format_validation: { is_valid: isValid, format_score: isValid ? 0.7 : 0.1, message: isValid ? 'PDF format OK' : 'Invalid PDF' }
       };
       
     } catch (error) {
-      console.error('PDF analysis error:', error);
+      console.error('PDF analysis error:', error.message);
       return {
-        isValid: false,
-        confidenceScore: 0.0,
-        detectedText: 'PDF analysis failed',
-        authenticity: 'unknown',
-        verificationStatus: 'failed',
-        extractedData: { documentType: documentType, processed: false },
-        anomalies: ['PDF analysis failed'],
-        analysisDetails: {
-          formatValidation: 'failed',
-          contentAnalysis: 'failed',
-          error: error.message
-        }
+        is_valid: false,
+        confidence_score: 0.0,
+        detected_text: 'PDF analysis failed',
+        extracted_data: { documentType: documentType, processed: false, detected_document_type_by_content: 'unknown', serviceError: true },
+        anomalies: ['PDF analysis processing error', error.message],
+        quality_score: 0.0,
+        ocr_accuracy: 0.0,
+        signature_detected: false,
+        format_validation: { is_valid: false, format_score: 0.0, message: 'PDF analysis error' },
+        error: error.message
       };
     }
   }

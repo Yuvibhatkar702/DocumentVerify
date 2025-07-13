@@ -133,6 +133,7 @@ const UploadForm = ({ onUploadSuccess }) => {
       if (!allowedTypes.includes(selectedFile.type) && !allowedExtensions.includes(`.${fileExt}`)) {
         alert('Please select a valid file type:\n• Images: JPEG, PNG, GIF, WebP, TIFF, BMP\n• Documents: PDF');
         e.target.value = '';
+        setFile(null); // Explicitly set file state to null
         return;
       }
 
@@ -147,8 +148,24 @@ const UploadForm = ({ onUploadSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file || !documentType) {
-      alert('Please select a file and document type');
+    // Strengthened initial validation
+    if (!documentType || documentType.trim() === '') {
+      alert('Please select a document type.');
+      return;
+    }
+    // Add specific check for the string "undefined"
+    if (documentType === 'undefined') {
+      alert('Please select a valid document type. The type cannot be "undefined".');
+      return;
+    }
+    if (!file || !(file instanceof File)) {
+      alert('Please select a valid file.');
+      // Attempt to reset file input visually if it's in a weird state, though state should be null
+      const fileInput = document.getElementById('file');
+      if (fileInput) {
+        fileInput.value = '';
+      }
+      setFile(null); // Ensure state is also cleared
       return;
     }
 

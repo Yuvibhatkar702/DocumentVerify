@@ -427,8 +427,8 @@ class SimpleAdvancedVerifier:
                     if features.get('face_quality_mean', 0) > 100: # Assuming face_quality_mean is sharpness-like
                         score += 0.05
                 else:
-                    score -= 0.2 # Penalty for no face in ID is significant
-                    anomalies.append("No face detected in ID document")
+                    score -= 0.15 # Reduced penalty for no face in ID
+                    anomalies.append("No face detected in ID document (or detection failed)")
                 
                 if features.get('multiple_faces_detected', False):
                     score -= 0.15
@@ -463,8 +463,8 @@ class SimpleAdvancedVerifier:
             # Apply final constraints
             final_score = max(0.0, min(1.0, score))
             
-            # Document is authentic if score > 0.7 and minimal anomalies
-            is_authentic = final_score >= 0.7 and len(anomalies) <= 2
+            # Document is authentic if score > 0.65 and fewer anomalies
+            is_authentic = final_score >= 0.65 and len(anomalies) <= 3 # Adjusted threshold and anomaly count
             
             return {
                 'is_authentic': is_authentic,
