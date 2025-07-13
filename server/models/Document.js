@@ -48,6 +48,16 @@ const documentSchema = new mongoose.Schema({
     enum: ['uploaded', 'processing', 'verified', 'failed', 'rejected', 'pending_review'],
     default: 'uploaded'
   },
+  // Extracted text from OCR
+  extractedText: {
+    type: String,
+    default: ''
+  },
+  // Structured data extracted from OCR
+  extractedData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   verificationResult: {
     confidence: { type: Number, min: 0, max: 100 },
     extractedData: mongoose.Schema.Types.Mixed,
@@ -58,7 +68,11 @@ const documentSchema = new mongoose.Schema({
       formatValidation: mongoose.Schema.Types.Mixed,
       ocrResult: {
         text: String,
-        confidence: Number
+        confidence: Number,
+        success: Boolean,
+        extractedData: mongoose.Schema.Types.Mixed,
+        textRegions: [mongoose.Schema.Types.Mixed],
+        error: String
       },
       signatureDetection: {
         detected: Boolean,

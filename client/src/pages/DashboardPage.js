@@ -122,7 +122,7 @@ const Dashboard = () => {
       const stats = documentsData.reduce((acc, doc) => {
         acc.total++;
         if (doc.status === 'verified') acc.verified++;
-        else if (doc.status === 'processing' || doc.status === 'needs_review') acc.pending++;
+        else if (doc.status === 'processing' || doc.status === 'pending_review' || doc.status === 'uploaded') acc.pending++;
         else acc.failed++;
         return acc;
       }, { total: 0, verified: 0, pending: 0, failed: 0 });
@@ -177,7 +177,7 @@ const Dashboard = () => {
           case 'verified':
             return doc.status === 'verified';
           case 'pending':
-            return doc.status === 'processing' || doc.status === 'needs_review';
+            return doc.status === 'processing' || doc.status === 'pending_review' || doc.status === 'uploaded';
           case 'failed':
             return doc.status === 'rejected' || doc.status === 'failed';
           default:
@@ -206,7 +206,7 @@ const Dashboard = () => {
     const getStatusColor = (status) => {
       switch (status) {
         case 'verified': return 'text-green-400';
-        case 'processing': case 'needs_review': return 'text-yellow-400';
+        case 'processing': case 'pending_review': case 'uploaded': return 'text-yellow-400';
         case 'rejected': case 'failed': return 'text-red-400';
         default: return 'text-gray-400';
       }
@@ -216,7 +216,8 @@ const Dashboard = () => {
       switch (status) {
         case 'verified': return '✅';
         case 'processing': return '⏳';
-        case 'needs_review': return '⚠️';
+        case 'pending_review': return '⚠️';
+        case 'uploaded': return '📄';
         case 'rejected': case 'failed': return '❌';
         default: return '📄';
       }
@@ -246,7 +247,7 @@ const Dashboard = () => {
           </div>
           <span className={`text-xs font-medium px-2 py-1 rounded-full bg-opacity-20 ${getStatusColor(document.status)} ${
             document.status === 'verified' ? 'bg-green-500' : 
-            document.status === 'processing' ? 'bg-yellow-500' : 
+            document.status === 'processing' || document.status === 'pending_review' || document.status === 'uploaded' ? 'bg-yellow-500' : 
             'bg-red-500'
           }`}>
             {document.status}
@@ -277,7 +278,7 @@ const Dashboard = () => {
           )}
         </div>
 
-        {document.status === 'processing' && (
+        {(document.status === 'processing' || document.status === 'uploaded') && (
           <div className="mb-3">
             <div className="w-full bg-gray-700 rounded-full h-1">
               <div 

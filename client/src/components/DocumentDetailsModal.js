@@ -1,14 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { getDocumentOCR } from '../services/documentService';
 
 const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
+  const [ocrData, setOcrData] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState(null);
+  const [showOCRText, setShowOCRText] = useState(false);
+
+  // Fetch OCR data when modal opens
+  useEffect(() => {
+    if (isOpen && document && document._id) {
+      fetchOCRData();
+    }
+  }, [isOpen, document]);
+
+  const fetchOCRData = async () => {
+    try {
+      setOcrLoading(true);
+      setOcrError(null);
+      const response = await getDocumentOCR(document._id);
+      if (response.success) {
+        setOcrData(response.data);
+      } else {
+        setOcrError(response.error || 'Failed to extract text');
+      }
+    } catch (error) {
+      console.error('Error fetching OCR data:', error);
+      setOcrError(error.message || 'Failed to extract text');
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   if (!isOpen || !document) return null;
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'verified': return 'text-green-400';
-      case 'pending': return 'text-yellow-400';
-      case 'failed': return 'text-red-400';
+      case 'pending': case 'processing': case 'pending_review': return 'text-yellow-400';
+      case 'failed': case 'rejected': return 'text-red-400';
       default: return 'text-gray-400';
     }
   };
@@ -16,8 +47,9 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'verified': return '✅';
-      case 'pending': return '⏳';
-      case 'failed': return '❌';
+      case 'pending': case 'processing': return '⏳';
+      case 'pending_review': return '⚠️';
+      case 'failed': case 'rejected': return '❌';
       default: return '❓';
     }
   };
@@ -156,6 +188,100 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
             </div>
           </div>
         )}
+
+        {/* OCR Extracted Text Section */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-white">📝 Extracted Text (OCR)</h3>
+            <button
+              onClick={() => setShowOCRText(!showOCRText)}
+              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm py-1 px-3 rounded-lg border border-blue-500/30 transition-all duration-200"
+            >
+              {showOCRText ? 'Hide Text' : 'Show Text'}
+            </button>
+          </div>
+          
+          {showOCRText && (
+            <div className="bg-gray-800 rounded-lg p-4">
+              {ocrLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                  <span className="ml-3 text-gray-400">Extracting text...</span>
+                </div>
+              )}
+              
+              {ocrError && (
+                <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-red-400">❌</span>
+                    <span className="text-red-300 text-sm">Error: {ocrError}</span>
+                  </div>
+                </div>
+              )}
+              
+              {ocrData && !ocrLoading && (
+                <div className="space-y-4">
+                  {/* OCR Stats */}
+                  <div className="flex items-center justify-between text-sm border-b border-gray-700 pb-2">
+                    <span className="text-gray-400">Confidence: {Math.round(ocrData.confidence * 100)}%</span>
+                    <span className="text-gray-400">
+                      {ocrData.cached ? '📋 Cached' : '🔍 Fresh scan'}
+                    </span>
+                  </div>
+                  
+                  {/* Extracted Text */}
+                  {ocrData.extractedText ? (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-2">Extracted Text:</h4>
+                      <div className="bg-gray-900 rounded p-3 max-h-64 overflow-y-auto">
+                        <pre className="text-gray-300 text-sm whitespace-pre-wrap">
+                          {ocrData.extractedText}
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-900/50 border border-gray-600 rounded-lg p-4 text-center">
+                      <span className="text-gray-400">No text could be extracted from this document</span>
+                    </div>
+                  )}
+                  
+                  {/* Structured Data */}
+                  {ocrData.extractedData && Object.keys(ocrData.extractedData).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-2">Structured Data:</h4>
+                      <div className="bg-gray-900 rounded p-3">
+                        <pre className="text-gray-300 text-xs whitespace-pre-wrap">
+                          {JSON.stringify(ocrData.extractedData, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Retry button for failed extractions */}
+                  {ocrData.error && (
+                    <button
+                      onClick={fetchOCRData}
+                      className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm py-2 px-4 rounded-lg border border-blue-500/30 transition-all duration-200"
+                    >
+                      🔄 Retry Text Extraction
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {!ocrData && !ocrLoading && !ocrError && (
+                <div className="text-center py-8">
+                  <button
+                    onClick={fetchOCRData}
+                    className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm py-2 px-4 rounded-lg border border-blue-500/30 transition-all duration-200"
+                  >
+                    🔍 Extract Text
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Comprehensive Analysis Report */}
         {document.verificationResult && (

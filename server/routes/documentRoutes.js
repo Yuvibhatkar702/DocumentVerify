@@ -5,7 +5,8 @@ const {
   getDocuments,
   getDocument,
   verifyDocument,
-  deleteDocument
+  deleteDocument,
+  getDocumentOCR
 } = require('../controllers/documentController');
 const auth = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
@@ -41,6 +42,7 @@ const verifyValidation = [
 router.post('/upload', preUploadLogger, auth, upload.single('document'), postUploadLogger, uploadErrorHandler, uploadDocument);
 router.get('/', auth, getDocuments);
 router.get('/:id', auth, getDocument);
+router.get('/:id/ocr', auth, getDocumentOCR);
 router.post('/:id/verify', auth, admin, verifyValidation, verifyDocument);
 router.delete('/:id', auth, deleteDocument);
 

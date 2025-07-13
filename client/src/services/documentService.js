@@ -81,6 +81,18 @@ export const getDocumentById = async (id) => {
   return api.get(`/documents/${id}`);
 };
 
+export const getDocumentOCR = async (id) => {
+  try {
+    console.log(`Fetching OCR data for document ${id}`);
+    const response = await api.get(`/documents/${id}/ocr`);
+    console.log('OCR response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching OCR data:', error);
+    throw error;
+  }
+};
+
 export const verifyDocument = async (id) => {
   return api.post(`/documents/${id}/verify`);
 };
