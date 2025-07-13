@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const AIMlService = require('../services/aiMlService');
 const OCRService = require('../services/ocrService');
+const FakeDetectionService = require('../services/fakeDetectionService');
 
 
 
@@ -152,36 +153,79 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
         signature = { signature_detected: false, confidence: 0.6 };
       }
     } else {
-      console.log(`[ProcessDocument] AI service unavailable, using fallback analysis`);
-      // Create fallback analysis based on OCR results - more optimistic for real documents
+      console.log(`[ProcessDocument] AI service unavailable, using strict fallback analysis`);
+      // Create strict fallback analysis - be very conservative without AI
       const ocrConfidence = ocrResult.confidence || 0;
-      const hasText = ocrResult.text && ocrResult.text.length > 10;
-      const hasStructuredData = ocrResult.extractedData && Object.keys(ocrResult.extractedData).length > 0;
+      const hasText = ocrResult.text && ocrResult.text.length > 50; // Require more text
+      const hasStructuredData = ocrResult.extractedData && Object.keys(ocrResult.extractedData).length > 2; // Require more data
       
-      // More generous scoring for fallback analysis
-      let fallbackConfidence = 0.7; // Start higher for fallback
-      if (hasText) fallbackConfidence += 0.1;
-      if (hasStructuredData) fallbackConfidence += 0.1;
-      if (ocrConfidence > 0.6) fallbackConfidence += 0.1;
+      // MUCH more conservative scoring for fallback
+      let fallbackConfidence = 0.3; // Start much lower without AI
+      if (hasText) fallbackConfidence += 0.15;
+      if (hasStructuredData) fallbackConfidence += 0.15;
+      if (ocrConfidence > 0.7) fallbackConfidence += 0.15; // Higher OCR threshold
+      if (ocrConfidence > 0.8) fallbackConfidence += 0.1;
+      
+      // Additional checks for fallback
+      const textLength = ocrResult.text?.length || 0;
+      const hasOfficialKeywords = /\b(LICENSE|PASSPORT|CERTIFICATE|IDENTIFICATION|GOVERNMENT|OFFICIAL)\b/i.test(ocrResult.text || '');
+      const hasPersonalInfo = /\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b/.test(ocrResult.text || ''); // Full names
+      const hasNumbers = /\b\d{6,}\b/.test(ocrResult.text || ''); // Long numbers
+      
+      if (hasOfficialKeywords) fallbackConfidence += 0.1;
+      if (hasPersonalInfo) fallbackConfidence += 0.1;
+      if (hasNumbers) fallbackConfidence += 0.05;
+      if (textLength > 200) fallbackConfidence += 0.1;
+      
+      console.log(`[ProcessDocument] Fallback analysis factors:`, {
+        hasText, hasStructuredData, ocrConfidence, textLength,
+        hasOfficialKeywords, hasPersonalInfo, hasNumbers,
+        calculatedConfidence: fallbackConfidence
+      });
       
       analysis = {
-        confidenceScore: Math.min(fallbackConfidence, 0.95),
-        quality_score: Math.max(ocrConfidence, 0.7),
+        confidenceScore: Math.min(fallbackConfidence, 0.75), // Cap fallback confidence lower
+        quality_score: Math.max(ocrConfidence, 0.4), // Lower floor
         anomalies: ocrResult.success ? [] : ['OCR extraction failed'],
         document_type: documentType,
-        is_authentic: ocrResult.success || hasText
+        is_authentic: ocrResult.success && hasText && (hasStructuredData || hasOfficialKeywords)
       };
       format = { 
-        format_score: ocrResult.success ? 0.85 : 0.6, 
-        is_valid_format: ocrResult.success || hasText
+        format_score: ocrResult.success && hasText ? 0.6 : 0.3, // Much more conservative
+        is_valid_format: ocrResult.success && hasText && hasStructuredData
       };
-      signature = { signature_detected: false, confidence: 0.6 };
+      signature = { signature_detected: false, confidence: 0.4 }; // Lower confidence without AI
     }
 
     // Calculate comprehensive authenticity score
     const score = calculateAuthenticityScore(analysis, format, ocrResult, signature);
     console.log(`[ProcessDocument] Calculated authenticity score: ${score}`);
+    
+    // CRITICAL: Run fake detection analysis
+    const fakeAnalysis = FakeDetectionService.analyzeForFakeIndicators(ocrResult.text || '', documentType);
+    console.log(`[ProcessDocument] Fake detection analysis:`, {
+      isFake: fakeAnalysis.isFake,
+      confidence: fakeAnalysis.confidence,
+      score: fakeAnalysis.score,
+      reasons: fakeAnalysis.reasons,
+      positiveSignals: fakeAnalysis.positiveSignals
+    });
+    
+    // If fake detection is confident it's fake, override other scores
+    if (fakeAnalysis.isFake && fakeAnalysis.confidence > 0.7) {
+      console.log(`[ProcessDocument] FAKE DOCUMENT DETECTED with high confidence - overriding score`);
+      // Force very low score for high-confidence fake detection
+      const adjustedScore = Math.min(score * 0.3, 0.25);
+      console.log(`[ProcessDocument] Score adjusted from ${score} to ${adjustedScore} due to fake detection`);
+    }
+    
+    const finalScore = fakeAnalysis.isFake && fakeAnalysis.confidence > 0.7 ? 
+      Math.min(score * 0.3, 0.25) : score;
+    
     console.log(`[ProcessDocument] Analysis details:`, {
+      originalScore: score,
+      finalScore,
+      fakeDetectionOverride: fakeAnalysis.isFake && fakeAnalysis.confidence > 0.7,
       ocrSuccess: ocrResult.success,
       ocrTextLength: ocrResult.text?.length || 0,
       ocrConfidence: ocrResult.confidence,
@@ -191,24 +235,67 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
       isAuthentic: analysis.is_authentic
     });
 
-    // Determine final status based on score and analysis - more lenient thresholds
+    // Determine final status based on score and analysis - MUCH STRICTER THRESHOLDS
     let status = 'rejected';
     let authenticity = 'fake';
     
-    // Even more generous thresholds for real documents
-    if (score >= 0.55 && analysis.is_authentic !== false) {
-      status = 'verified';
-      authenticity = 'authentic';
-    } else if (score >= 0.35) {
-      status = 'pending_review';
-      authenticity = 'suspicious';
-    } else if (score >= 0.20 && ocrResult.success && ocrResult.text.length > 20) {
-      // If OCR succeeded and extracted reasonable text, don't reject immediately
-      status = 'pending_review';
-      authenticity = 'suspicious';
-    } else {
+    // STRICT thresholds for verification - be very conservative
+    const hasStrongOCR = ocrResult.success && ocrResult.confidence > 0.6 && ocrResult.text.length > 100;
+    const hasStructuredData = ocrResult.extractedData && Object.keys(ocrResult.extractedData).length > 2;
+    const hasOfficialKeywords = /\b(LICENSE|PASSPORT|CERTIFICATE|IDENTIFICATION|GOVERNMENT|OFFICIAL)\b/i.test(ocrResult.text || '');
+    
+    console.log(`[ProcessDocument] Verification factors:`, {
+      finalScore,
+      hasStrongOCR,
+      hasStructuredData, 
+      hasOfficialKeywords,
+      aiAuthentic: analysis.is_authentic,
+      ocrTextLength: ocrResult.text?.length || 0,
+      ocrConfidence: ocrResult.confidence,
+      fakeDetected: fakeAnalysis.isFake,
+      fakeConfidence: fakeAnalysis.confidence
+    });
+    
+    // Immediate rejection for high-confidence fake detection
+    if (fakeAnalysis.isFake && fakeAnalysis.confidence > 0.7) {
       status = 'rejected';
       authenticity = 'fake';
+      console.log(`[ProcessDocument] REJECTED: High-confidence fake detection`);
+    }
+    // VERIFIED: Require high score AND multiple verification factors AND no fake detection
+    else if (finalScore >= 0.75 && 
+             analysis.is_authentic !== false && 
+             hasStrongOCR && 
+             (hasStructuredData || hasOfficialKeywords) &&
+             (!fakeAnalysis.isFake || fakeAnalysis.confidence < 0.3)) {
+      status = 'verified';
+      authenticity = 'authentic';
+      console.log(`[ProcessDocument] VERIFIED: High score + strong OCR + structured data/keywords + no fake detection`);
+    } 
+    // PENDING: Medium score with some verification factors and low fake suspicion
+    else if (finalScore >= 0.55 && 
+             analysis.is_authentic !== false && 
+             (hasStrongOCR || hasStructuredData) &&
+             (!fakeAnalysis.isFake || fakeAnalysis.confidence < 0.5)) {
+      status = 'pending_review';
+      authenticity = 'suspicious';
+      console.log(`[ProcessDocument] PENDING: Medium score with some verification factors`);
+    }
+    // PENDING: Low-medium score but OCR extracted significant content
+    else if (finalScore >= 0.40 && 
+             ocrResult.success && 
+             ocrResult.text.length > 80 && 
+             analysis.is_authentic !== false &&
+             (!fakeAnalysis.isFake || fakeAnalysis.confidence < 0.6)) {
+      status = 'pending_review'; 
+      authenticity = 'suspicious';
+      console.log(`[ProcessDocument] PENDING: Low-medium score but significant OCR content`);
+    }
+    // REJECTED: Everything else
+    else {
+      status = 'rejected';
+      authenticity = 'fake';
+      console.log(`[ProcessDocument] REJECTED: Failed verification thresholds`);
     }
 
     console.log(`[ProcessDocument] Final status: ${status}, authenticity: ${authenticity}`);
@@ -219,8 +306,14 @@ const processDocumentWithAI = async (documentId, filePath, documentType) => {
       processedAt: new Date(),
       verifiedAt: status === 'verified' ? new Date() : null,
       verificationResult: {
-        confidence: Math.round(score * 100),
+        confidence: Math.round(finalScore * 100),
         authenticity,
+        fakeDetection: {
+          isFake: fakeAnalysis.isFake,
+          confidence: fakeAnalysis.confidence,
+          reasons: fakeAnalysis.reasons,
+          positiveSignals: fakeAnalysis.positiveSignals
+        },
         analysisDetails: {
           aiAnalysis: analysis,
           formatValidation: format,
@@ -267,69 +360,117 @@ const calculateAuthenticityScore = (analysis, format, ocrResult, signature) => {
     const aiScore = analysis.confidenceScore || 0;
     const formatScore = format.format_score || 0;
     const ocrScore = ocrResult.confidence || 0;
-    const signatureScore = signature.signature_detected ? (signature.confidence || 0.7) : 0.6;
+    const signatureScore = signature.signature_detected ? (signature.confidence || 0.7) : 0.5; // Lower base
     const qualityScore = analysis.quality_score || 0;
     
-    // More balanced weighting for real-world scenarios
+    console.log(`[CalculateScore] Base scores:`, {
+      aiScore, formatScore, ocrScore, signatureScore, qualityScore
+    });
+    
+    // Rebalanced weighting - give more importance to OCR and content analysis
     let totalScore = (
-      aiScore * 0.30 +           // AI analysis (30%)
-      formatScore * 0.20 +       // Format validation (20%)
-      ocrScore * 0.30 +          // OCR confidence (30% - increased)
+      aiScore * 0.25 +           // AI analysis (25%)
+      formatScore * 0.15 +       // Format validation (15%)
+      ocrScore * 0.40 +          // OCR confidence (40% - primary factor)
       signatureScore * 0.10 +    // Signature detection (10%)
       qualityScore * 0.10        // Image quality (10%)
     );
 
-    // Reduced penalty for anomalies (real documents may have some minor issues)
-    const anomalyPenalty = Math.min((analysis.anomalies?.length || 0) * 0.02, 0.15); // Cap penalty at 15%
+    console.log(`[CalculateScore] Weighted score: ${totalScore.toFixed(3)}`);
+
+    // MORE STRICT penalty for anomalies
+    const anomalyCount = analysis.anomalies?.length || 0;
+    const anomalyPenalty = Math.min(anomalyCount * 0.08, 0.25); // Higher penalty, cap at 25%
     totalScore = Math.max(0, totalScore - anomalyPenalty);
+    
+    if (anomalyCount > 0) {
+      console.log(`[CalculateScore] Applied anomaly penalty: ${anomalyPenalty} for ${anomalyCount} anomalies`);
+    }
 
-    // Enhanced bonuses for successful OCR
+    // Content validation bonuses - but stricter requirements
     if (ocrResult.success && ocrResult.text) {
-      if (ocrResult.text.length > 20) totalScore += 0.1;
-      if (ocrResult.text.length > 100) totalScore += 0.05;
-      if (ocrResult.text.length > 300) totalScore += 0.05;
+      const textLength = ocrResult.text.length;
+      
+      // Text length bonuses - require more content
+      if (textLength > 80) totalScore += 0.05;
+      if (textLength > 200) totalScore += 0.05;
+      if (textLength > 400) totalScore += 0.05;
+      
+      console.log(`[CalculateScore] Text length bonuses for ${textLength} characters`);
     }
 
-    // Bonus for structured data extraction
-    if (ocrResult.extractedData && Object.keys(ocrResult.extractedData).length > 0) {
-      totalScore += 0.1;
+    // Structured data bonus - require more comprehensive data
+    const extractedDataKeys = Object.keys(ocrResult.extractedData || {});
+    if (extractedDataKeys.length > 2) {
+      totalScore += 0.08;
+      console.log(`[CalculateScore] Structured data bonus for ${extractedDataKeys.length} data types`);
     }
-
-    // Bonus for multiple data types extracted
-    if (ocrResult.extractedData) {
-      const dataTypes = Object.keys(ocrResult.extractedData).length;
-      if (dataTypes >= 2) totalScore += 0.05;
-      if (dataTypes >= 4) totalScore += 0.05;
-    }
-
-    // Special handling for when we have good OCR but low AI scores
-    if (ocrResult.success && ocrResult.confidence > 0.6 && totalScore < 0.5) {
-      totalScore = Math.max(totalScore, 0.55); // Minimum score for good OCR
-    }
-
-    // Additional boost for documents with good text extraction (likely real)
-    if (ocrResult.success && ocrResult.text.length > 50 && totalScore < 0.6) {
-      totalScore = Math.max(totalScore, 0.6); // Good OCR extraction indicates real document
-    }
-
-    // Ensure score is within valid range
-    const finalScore = Math.max(0.1, Math.min(1.0, totalScore));
     
-    console.log(`[calculateAuthenticityScore] Score breakdown:`, {
-      ai: aiScore * 0.30,
-      format: formatScore * 0.20,
-      ocr: ocrScore * 0.30,
-      signature: signatureScore * 0.10,
-      quality: qualityScore * 0.10,
-      penalty: anomalyPenalty,
-      bonuses: totalScore - (aiScore * 0.30 + formatScore * 0.20 + ocrScore * 0.30 + signatureScore * 0.10 + qualityScore * 0.10),
-      final: finalScore
+    if (extractedDataKeys.length > 4) {
+      totalScore += 0.07;
+      console.log(`[CalculateScore] Additional structured data bonus`);
+    }
+
+    // Critical pattern validation
+    const text = ocrResult.text || '';
+    let criticalPatternCount = 0;
+    
+    // Essential patterns for official documents
+    const criticalPatterns = [
+      { name: 'Official Keywords', pattern: /\b(LICENSE|PASSPORT|CERTIFICATE|IDENTIFICATION|GOVERNMENT|OFFICIAL|ISSUED)\b/i },
+      { name: 'Full Names', pattern: /\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b/ },
+      { name: 'Dates', pattern: /\b\d{4}[-/]\d{2}[-/]\d{2}\b|\b\d{2}[-/]\d{2}[-/]\d{4}\b/ },
+      { name: 'ID Numbers', pattern: /\b[A-Z0-9]{6,}\b/ },
+      { name: 'Addresses', pattern: /\b\d+\s+[A-Z][a-z]+\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr)\b/i }
+    ];
+    
+    criticalPatterns.forEach(({ name, pattern }) => {
+      if (pattern.test(text)) {
+        criticalPatternCount++;
+        totalScore += 0.04;
+        console.log(`[CalculateScore] Found critical pattern: ${name}`);
+      }
     });
+
+    // Penalty for missing too many critical patterns
+    if (criticalPatternCount < 2) {
+      const missingPenalty = 0.15;
+      totalScore -= missingPenalty;
+      console.log(`[CalculateScore] Missing critical patterns penalty: ${missingPenalty}`);
+    }
+
+    // Check for fake document indicators
+    const fakeIndicators = [
+      /\b(FAKE|TEST|SAMPLE|DUMMY|PLACEHOLDER|EXAMPLE|DEMO)\b/i,
+      /\b(JOHN DOE|JANE DOE|TEST USER|SAMPLE USER)\b/i,
+      /\b(123-45-6789|000-00-0000)\b/,
+      /\b(123 MAIN ST|123 FAKE ST)\b/i
+    ];
+
+    fakeIndicators.forEach(pattern => {
+      if (pattern.test(text)) {
+        totalScore *= 0.2; // Heavy penalty for fake indicators
+        console.log(`[CalculateScore] FAKE INDICATOR DETECTED - applying heavy penalty`);
+      }
+    });
+
+    // Final bounds
+    const finalScore = Math.max(0.0, Math.min(1.0, totalScore));
     
+    console.log(`[CalculateScore] Final score calculation:`, {
+      baseWeightedScore: (totalScore + anomalyPenalty).toFixed(3),
+      anomalyPenalty: anomalyPenalty.toFixed(3),
+      criticalPatternCount,
+      textLength: text.length,
+      extractedDataTypes: extractedDataKeys.length,
+      finalScore: finalScore.toFixed(3)
+    });
+
     return finalScore;
+    
   } catch (error) {
-    console.error('[calculateAuthenticityScore] Error calculating score:', error.message);
-    return 0.6; // Return optimistic neutral score on error
+    console.error(`[CalculateScore] Error calculating authenticity score:`, error.message);
+    return 0.1; // Return very low score on error
   }
 };
 

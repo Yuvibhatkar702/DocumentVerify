@@ -165,7 +165,7 @@ class OCRService {
   }
 
   /**
-   * Estimate confidence based on text quality and length
+   * Estimate confidence based on text quality and length - STRICTER VERSION
    * @param {string} text - Extracted text
    * @param {Object} result - OCR result object
    * @returns {number} Confidence score (0-1)
@@ -173,65 +173,119 @@ class OCRService {
   estimateConfidence(text, result) {
     if (!text || text.length === 0) return 0;
 
-    let confidence = 0.6; // Increased base confidence for real documents
+    // Start with much lower base confidence - be skeptical!
+    let confidence = 0.2; // Much more conservative starting point
 
-    // Text length factor - more generous for real documents
-    if (text.length > 20) confidence += 0.15;
-    if (text.length > 100) confidence += 0.15;
-    if (text.length > 300) confidence += 0.1;
+    // Text length factor - stricter requirements
+    if (text.length > 50) confidence += 0.1;   // Require more text for bonus
+    if (text.length > 150) confidence += 0.1;  // Higher threshold
+    if (text.length > 400) confidence += 0.1;  // Much higher threshold
 
-    // Check for common document patterns - more comprehensive
-    const patterns = [
-      /\b\d{4}[-/]\d{2}[-/]\d{2}\b/, // Dates
-      /\b\d{2}[-/]\d{2}[-/]\d{4}\b/, // US date format
-      /\b[A-Z]{2,3}\d{6,}\b/, // ID numbers
-      /\b\d{4,}\b/, // Any 4+ digit numbers
-      /\b[A-Z][a-z]+ [A-Z][a-z]+\b/, // Names
-      /\b[A-Z][a-z]+\b/, // Single capitalized words
-      /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/, // Phone numbers
-      /\b[A-Z0-9]{6,}\b/, // Document numbers
-      /\bID|CARD|LICENSE|PASSPORT|CERTIFICATE\b/i, // Document type keywords
-      /\bNAME|DATE|BIRTH|ADDRESS|NUMBER\b/i, // Field labels
-      /\b(MALE|FEMALE|M|F)\b/i, // Gender indicators
-      /\b[A-Z]{2}\b/, // State codes
-      /\$([\d,]+\.?\d*)|(\d+)\s*(USD|DOLLAR)/i // Currency
-    ];
+    // Check for ESSENTIAL document patterns - much stricter
+    const criticalPatterns = {
+      dates: /\b\d{4}[-/]\d{2}[-/]\d{2}\b|\b\d{2}[-/]\d{2}[-/]\d{4}\b/, // Dates
+      ids: /\b[A-Z]{2,3}\d{6,}\b|\b\d{6,}\b/, // ID numbers (6+ digits)
+      names: /\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b/, // Full names (first + last)
+      officialKeywords: /\b(LICENSE|PASSPORT|CERTIFICATE|IDENTIFICATION|IDENTITY|CARD|GOVERNMENT|ISSUED|OFFICIAL|DOCUMENT)\b/i,
+      addresses: /\b\d+\s+[A-Z][a-z]+\s+(Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln)\b/i,
+      stateCode: /\b[A-Z]{2}\s+\d{5}\b/, // State + ZIP
+      documentNumbers: /\b[A-Z0-9]{8,}\b/, // Long alphanumeric codes
+      phoneNumbers: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/
+    };
 
-    let patternMatches = 0;
-    patterns.forEach(pattern => {
+    let criticalMatches = 0;
+    let totalCriticalPatterns = Object.keys(criticalPatterns).length;
+
+    // Check each critical pattern
+    for (const [patternName, pattern] of Object.entries(criticalPatterns)) {
       if (pattern.test(text)) {
-        patternMatches++;
-        confidence += 0.03; // Smaller individual boosts but more patterns
+        criticalMatches++;
+        confidence += 0.05; // Smaller individual boosts
+        console.log(`[OCR] Found critical pattern: ${patternName}`);
+      } else {
+        console.log(`[OCR] Missing critical pattern: ${patternName}`);
       }
-    });
+    }
 
-    // Bonus for multiple pattern matches (indicates structured document)
-    if (patternMatches >= 3) confidence += 0.1;
-    if (patternMatches >= 5) confidence += 0.1;
+    // Penalty for missing too many critical patterns
+    const missingCriticalRatio = (totalCriticalPatterns - criticalMatches) / totalCriticalPatterns;
+    if (missingCriticalRatio > 0.6) {
+      confidence *= 0.5; // Heavy penalty for missing most critical patterns
+      console.log(`[OCR] Missing ${missingCriticalRatio * 100}% of critical patterns - applying penalty`);
+    }
+
+    // Require at least 3 critical patterns for decent confidence
+    if (criticalMatches < 3) {
+      confidence *= 0.6;
+      console.log(`[OCR] Only found ${criticalMatches} critical patterns - applying penalty`);
+    }
 
     // Check for meaningful words (not just random characters)
     const words = text.split(/\s+/).filter(word => word.length > 1);
     const meaningfulWords = words.filter(word => /^[A-Za-z0-9]+$/.test(word));
+    const meaningfulRatio = meaningfulWords.length / Math.max(words.length, 1);
     
-    if (meaningfulWords.length > words.length * 0.5) {
-      confidence += 0.1;
-    }
-    if (meaningfulWords.length > words.length * 0.8) {
-      confidence += 0.1;
+    if (meaningfulRatio < 0.7) {
+      confidence *= 0.7; // Penalty for too many garbled words
+      console.log(`[OCR] Low meaningful word ratio: ${meaningfulRatio} - applying penalty`);
     }
 
-    // Check for proper capitalization (indicates real documents)
-    const capitalizedWords = text.match(/\b[A-Z][a-z]+/g) || [];
-    if (capitalizedWords.length >= 2) confidence += 0.05;
+    // Check for proper document structure indicators
+    const structureIndicators = [
+      /\b(NAME|FULL NAME|FIRST NAME|LAST NAME)[:]\s*[A-Z]/i,
+      /\b(DATE OF BIRTH|DOB|BIRTH DATE)[:]\s*\d/i,
+      /\b(ADDRESS|HOME ADDRESS)[:]\s*\d/i,
+      /\b(ID NUMBER|LICENSE NUMBER|DOCUMENT NUMBER)[:]\s*[A-Z0-9]/i,
+      /\b(ISSUED|EXPIRES|EXPIRATION)[:]\s*\d/i,
+      /\b(SEX|GENDER)[:]\s*(M|F|MALE|FEMALE)/i
+    ];
 
-    // Check for numbers (common in official documents)
-    const numbers = text.match(/\d+/g) || [];
-    if (numbers.length >= 2) confidence += 0.05;
+    let structureMatches = 0;
+    structureIndicators.forEach(pattern => {
+      if (pattern.test(text)) {
+        structureMatches++;
+        confidence += 0.08; // Good bonus for structured data
+      }
+    });
 
-    // Penalty for very short text (likely not a real document)
-    if (text.length < 10) confidence *= 0.3;
+    console.log(`[OCR] Found ${structureMatches} structure indicators`);
 
-    return Math.max(0.1, Math.min(1.0, confidence));
+    // STRONG penalty for very short text (likely fake or poor quality)
+    if (text.length < 30) {
+      confidence *= 0.2;
+      console.log(`[OCR] Very short text (${text.length} chars) - applying heavy penalty`);
+    } else if (text.length < 80) {
+      confidence *= 0.5;
+      console.log(`[OCR] Short text (${text.length} chars) - applying penalty`);
+    }
+
+    // Check for fake/test document indicators
+    const fakeIndicators = [
+      /\b(FAKE|TEST|SAMPLE|DUMMY|PLACEHOLDER|EXAMPLE|DEMO)\b/i,
+      /\b(JOHN DOE|JANE DOE|TEST USER|SAMPLE USER)\b/i,
+      /\b(123-45-6789|000-00-0000)\b/, // Common fake SSNs
+      /\b(123 MAIN ST|123 FAKE ST)\b/i // Common fake addresses
+    ];
+
+    fakeIndicators.forEach(pattern => {
+      if (pattern.test(text)) {
+        confidence *= 0.1; // Heavy penalty for fake indicators
+        console.log(`[OCR] Detected fake document indicator - applying heavy penalty`);
+      }
+    });
+
+    // Final confidence bounds and logging
+    const finalConfidence = Math.max(0.0, Math.min(0.95, confidence));
+    
+    console.log(`[OCR] Confidence calculation:`, {
+      textLength: text.length,
+      criticalMatches: `${criticalMatches}/${totalCriticalPatterns}`,
+      structureMatches,
+      meaningfulRatio: meaningfulRatio.toFixed(2),
+      finalConfidence: finalConfidence.toFixed(2)
+    });
+
+    return finalConfidence;
   }
 
   /**
