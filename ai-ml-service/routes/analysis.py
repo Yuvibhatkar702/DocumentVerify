@@ -9,6 +9,7 @@ import numpy as np
 import pytesseract
 import logging
 import sys
+from utils.json_utils import to_serializable
 
 # Add the parent directory to sys.path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -94,7 +95,7 @@ async def analyze_document(
 
         logger.info(f"Analysis Result - Valid: {final_result['is_valid']}, Confidence: {final_result['confidence_score']}")
 
-        return JSONResponse({
+        response_data = {
             "is_valid": final_result["is_valid"],
             "confidence_score": final_result["confidence_score"],
             "detected_text": final_result["detected_text"],
@@ -112,7 +113,8 @@ async def analyze_document(
             "authenticity_indicators": classification_result.get('authenticity_indicators', []),
             "detailed_analysis": classification_result.get('detailed_analysis', ''),
             "timestamp": datetime.now().isoformat()
-        })
+        }
+        return JSONResponse(to_serializable(response_data))
 
     except Exception as e:
         logger.error(f"Error analyzing document: {str(e)}")
