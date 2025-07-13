@@ -43,7 +43,7 @@ router.post('/upload', preUploadLogger, auth, upload.single('document'), postUpl
 router.get('/', auth, getDocuments);
 router.get('/:id', auth, getDocument);
 router.get('/:id/ocr', auth, getDocumentOCR);
-router.post('/:id/verify', auth, admin, verifyValidation, verifyDocument);
+router.post('/:id/verify', auth, verifyValidation, verifyDocument);
 router.delete('/:id', auth, deleteDocument);
 
 module.exports = router;

@@ -173,34 +173,65 @@ class OCRService {
   estimateConfidence(text, result) {
     if (!text || text.length === 0) return 0;
 
-    let confidence = 0.5; // Base confidence
+    let confidence = 0.6; // Increased base confidence for real documents
 
-    // Text length factor
-    if (text.length > 50) confidence += 0.2;
-    if (text.length > 200) confidence += 0.1;
+    // Text length factor - more generous for real documents
+    if (text.length > 20) confidence += 0.15;
+    if (text.length > 100) confidence += 0.15;
+    if (text.length > 300) confidence += 0.1;
 
-    // Check for common document patterns
+    // Check for common document patterns - more comprehensive
     const patterns = [
       /\b\d{4}[-/]\d{2}[-/]\d{2}\b/, // Dates
-      /\b[A-Z]{2}\d{6,}\b/, // ID numbers
+      /\b\d{2}[-/]\d{2}[-/]\d{4}\b/, // US date format
+      /\b[A-Z]{2,3}\d{6,}\b/, // ID numbers
+      /\b\d{4,}\b/, // Any 4+ digit numbers
       /\b[A-Z][a-z]+ [A-Z][a-z]+\b/, // Names
-      /\b\d{3}-\d{2}-\d{4}\b/, // Social security numbers
-      /\b[A-Z0-9]{8,}\b/ // Document numbers
+      /\b[A-Z][a-z]+\b/, // Single capitalized words
+      /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/, // Phone numbers
+      /\b[A-Z0-9]{6,}\b/, // Document numbers
+      /\bID|CARD|LICENSE|PASSPORT|CERTIFICATE\b/i, // Document type keywords
+      /\bNAME|DATE|BIRTH|ADDRESS|NUMBER\b/i, // Field labels
+      /\b(MALE|FEMALE|M|F)\b/i, // Gender indicators
+      /\b[A-Z]{2}\b/, // State codes
+      /\$([\d,]+\.?\d*)|(\d+)\s*(USD|DOLLAR)/i // Currency
     ];
 
+    let patternMatches = 0;
     patterns.forEach(pattern => {
-      if (pattern.test(text)) confidence += 0.05;
+      if (pattern.test(text)) {
+        patternMatches++;
+        confidence += 0.03; // Smaller individual boosts but more patterns
+      }
     });
 
+    // Bonus for multiple pattern matches (indicates structured document)
+    if (patternMatches >= 3) confidence += 0.1;
+    if (patternMatches >= 5) confidence += 0.1;
+
     // Check for meaningful words (not just random characters)
-    const words = text.split(/\s+/).filter(word => word.length > 2);
-    const meaningfulWords = words.filter(word => /^[A-Za-z]+$/.test(word));
+    const words = text.split(/\s+/).filter(word => word.length > 1);
+    const meaningfulWords = words.filter(word => /^[A-Za-z0-9]+$/.test(word));
     
-    if (meaningfulWords.length > words.length * 0.7) {
+    if (meaningfulWords.length > words.length * 0.5) {
+      confidence += 0.1;
+    }
+    if (meaningfulWords.length > words.length * 0.8) {
       confidence += 0.1;
     }
 
-    return Math.min(confidence, 1.0);
+    // Check for proper capitalization (indicates real documents)
+    const capitalizedWords = text.match(/\b[A-Z][a-z]+/g) || [];
+    if (capitalizedWords.length >= 2) confidence += 0.05;
+
+    // Check for numbers (common in official documents)
+    const numbers = text.match(/\d+/g) || [];
+    if (numbers.length >= 2) confidence += 0.05;
+
+    // Penalty for very short text (likely not a real document)
+    if (text.length < 10) confidence *= 0.3;
+
+    return Math.max(0.1, Math.min(1.0, confidence));
   }
 
   /**

@@ -93,8 +93,16 @@ export const getDocumentOCR = async (id) => {
   }
 };
 
-export const verifyDocument = async (id) => {
-  return api.post(`/documents/${id}/verify`);
+export const verifyDocument = async (id, verificationData) => {
+  try {
+    console.log(`Verifying document ${id} with data:`, verificationData);
+    const response = await api.post(`/documents/${id}/verify`, verificationData);
+    console.log('Verify response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error verifying document:', error);
+    throw error;
+  }
 };
 
 export default api;

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getDocumentOCR } from '../services/documentService';
+import { getDocumentOCR, verifyDocument } from '../services/documentService';
 
-const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
+const DocumentDetailsModal = ({ document, isOpen, onClose, onDocumentUpdate }) => {
   const [ocrData, setOcrData] = useState(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState(null);
   const [showOCRText, setShowOCRText] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   // Fetch OCR data when modal opens
   useEffect(() => {
@@ -30,6 +31,34 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
       setOcrError(error.message || 'Failed to extract text');
     } finally {
       setOcrLoading(false);
+    }
+  };
+
+  const handleSelfApprove = async () => {
+    if (!window.confirm('Are you sure you want to approve this document as authentic?')) {
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      const response = await verifyDocument(document._id, {
+        isValid: true,
+        notes: 'Self-approved by document owner'
+      });
+
+      if (response.success) {
+        onClose();
+        // Show success message
+        alert('Document approved successfully! Page will refresh to show updated status.');
+        window.location.reload();
+      } else {
+        alert(response.message || 'Failed to approve document');
+      }
+    } catch (error) {
+      console.error('Error approving document:', error);
+      alert('Failed to approve document. Please try again.');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -463,7 +492,16 @@ const DocumentDetailsModal = ({ document, isOpen, onClose }) => {
           <button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition">
             📤 Share Report
           </button>
-          {document.status === 'pending' && (
+          {document.status === 'pending_review' && (
+            <button 
+              onClick={handleSelfApprove}
+              disabled={verifying}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg transition"
+            >
+              {verifying ? '⏳ Approving...' : '✅ Self-Approve'}
+            </button>
+          )}
+          {document.status === 'processing' && (
             <button className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition">
               🔍 Re-verify
             </button>

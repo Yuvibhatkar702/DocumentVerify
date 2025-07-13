@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [showAllDocuments, setShowAllDocuments] = useState(false);
   const [documentFilter, setDocumentFilter] = useState('all'); // all, verified, pending, failed
   const [documentSort, setDocumentSort] = useState('newest'); // newest, oldest, name
+  const [autoRefreshing, setAutoRefreshing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
@@ -38,6 +39,8 @@ const Dashboard = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+
 
   // Function to get user name from multiple sources
   const getUserName = () => {
@@ -523,6 +526,20 @@ const Dashboard = () => {
                     </select>
                   </>
                 )}
+                
+                {/* Manual Refresh Button */}
+                <button
+                  onClick={() => {
+                    fetchDocuments();
+                  }}
+                  disabled={loading}
+                  className="bg-green-500/20 hover:bg-green-500/30 disabled:bg-gray-500/20 text-green-400 disabled:text-gray-500 text-xs py-1 px-3 rounded-lg border border-green-500/30 disabled:border-gray-500/30 transition-all duration-200 hover:border-green-500/50 flex items-center space-x-1"
+                >
+                  <svg className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
                 
                 {documents.length > 8 && (
                   <button
